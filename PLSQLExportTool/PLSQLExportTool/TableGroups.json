@@ -1,0 +1,85 @@
+[
+  {
+    "GroupName": "Layout CD",
+    "Tables": [
+      {
+        "TableName": "WMS_ENDERECOS"
+      },
+      {
+        "TableName": "WMS_LA"
+      },
+      {
+        "TableName": "WMS_PREDIOS"
+      },
+      {
+        "TableName": "WMS_REGIOES_ARMAZENAGENS"
+      },
+      {
+        "TableName": "WMS_REGIOES_SEPARACOES"
+      },
+      {
+        "TableName": "WMS_RUAS_ARMAZENAGENS"
+      },
+      {
+        "TableName": "WMS_SUB_LA"
+      },
+      {
+        "TableName": "WMS_TP_LA"
+      },
+      {
+        "TableName": "WMS_TP_SUB_LA"
+      },
+      {
+        "TableName": "WMS_AREAS_MOVIMENTACOES"
+      },
+      {
+        "TableName": "WMS_ALMOXARIFADO"
+      }
+    ]
+  },
+  {
+    "GroupName": "Estoque",
+    "Tables": [
+      {
+        "TableName": "WMS_ESTOQUES_CD"
+        
+      },
+      {
+        "TableName": "ITEM",
+        "Where": "WHERE CODIGO IN (SELECT ITEM_COD_ITEM_LOG FROM WMS_ESTOQUES_CD)"
+      },
+      {
+        "TableName": "WMS_ITENS_LOGISTICAS",
+        "Where": "WHERE ITEM_COD_ITEM IN (SELECT ITEM_COD_ITEM_LOG FROM WMS_ESTOQUES_CD)"
+      }
+    ]
+  },
+  {
+    "GroupName": "Usuario e Colaborador",
+    "Tables": [
+      {
+        "TableName": "wms_colaboradores"
+      },
+      {
+        "TableName": "wms_areas_colaboradores"
+      },
+      {
+        "TableName": "wms_tarefas_colaboradores"
+      },
+      {
+        "TableName": "WMS_REGIOES_COLABORADORES"
+      }
+    ]
+  },
+  {
+    "GroupName": "Parametros",
+    "Tables": [
+      {
+        "TableName": "ger_parametros"
+      },
+      {
+        "TableName": "wms_parametros"
+      }
+    ]
+  }
+]
