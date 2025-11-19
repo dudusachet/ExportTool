@@ -94,15 +94,16 @@ namespace PLSQLExportTool.Data
         /// Obtém lista de todas as tabelas do usuário
         /// </summary>
         /// <returns>Lista de TableInfo</returns>
-        public List<TableInfo> GetAllTables()
+        public List<TableInfo> GetAllTables(string text = "", List<TableInfo> tablesGroup = null)
         {
-            string query = @"
-                SELECT 
-                    t.TABLE_NAME,
-                    t.NUM_ROWS,
-                    t.TABLESPACE_NAME
-                FROM USER_TABLES t
-                ORDER BY t.TABLE_NAME";
+            string query = $@"
+SELECT 
+    t.TABLE_NAME,
+    t.NUM_ROWS,
+    t.TABLESPACE_NAME
+FROM USER_TABLES t
+{text}
+";
 
             DataTable dt = _queryExecutor.ExecuteQuery(query);
             List<TableInfo> tables = new List<TableInfo>();
@@ -113,6 +114,8 @@ namespace PLSQLExportTool.Data
                 {
                     TableName = row["TABLE_NAME"].ToString(),
                     NumRows = row["NUM_ROWS"] != DBNull.Value ? Convert.ToInt64(row["NUM_ROWS"]) : 0,
+                    MinMax = tablesGroup?.Find(t => t.TableName == row["TABLE_NAME"].ToString()).MinMax,
+                    Where = tablesGroup?.Find(t => t.TableName == row["TABLE_NAME"].ToString()).Where,
                     TablespaceName = row["TABLESPACE_NAME"] != DBNull.Value ? row["TABLESPACE_NAME"].ToString() : null
                 });
             }
@@ -144,7 +147,7 @@ namespace PLSQLExportTool.Data
         /// </summary>
         /// <param name="tableName">Nome da tabela</param>
         /// <returns>Lista de comandos INSERT</returns>
-        public List<string> GetTableDML(string tableName)
+        public List<string> GetTableDML(string tableName, string whereStat, string minMax, ref Int64 minId, ref Int64 maxId)
         {
             List<string> dmlStatements = new List<string>();
             
@@ -165,7 +168,7 @@ namespace PLSQLExportTool.Data
             string columnsList = string.Join(", ", columnNames);
 
             // 2. Obter dados da tabela
-            string dataQuery = $"SELECT {columnsList} FROM {tableName}";
+            string dataQuery = $"SELECT {columnsList} FROM {tableName} {whereStat}";
             DataTable dataDt = _queryExecutor.ExecuteQuery(dataQuery);
 
             // 3. Gerar comandos INSERT
@@ -187,6 +190,16 @@ namespace PLSQLExportTool.Data
                         if (value is IConvertible convertible && IsNumericType(convertible.GetType()))
                         {
                             values.Add(value.ToString());
+
+                            if (minMax != null && columnNames[i].Equals(minMax))
+                                {
+                                    Int64 valor = Convert.ToInt64(value.ToString());
+                                    if (valor < minId)
+                                        minId = valor;
+                                    if (valor > maxId)
+                                        maxId = valor;
+                                }
+
                         }
                         else
                         {

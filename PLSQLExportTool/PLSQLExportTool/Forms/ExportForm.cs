@@ -39,6 +39,14 @@ namespace PLSQLExportTool.Forms
             UpdateConnectionStatus();
             UpdateConnectionString();
             LoadTableGroups();
+
+#if DEBUG
+            txtHost.Text = "172.25.100.205";
+            txtPort.Text = "1521";
+            txtServiceName.Text = "XE";
+            txtUserId.Text = "r22sp15";
+            txtPassword.Text = "r22sp15";
+#endif
         }
 
         // ====================================================================
@@ -166,14 +174,18 @@ namespace PLSQLExportTool.Forms
             if (!_connectionManager.IsConnected)
             {
                 MessageBox.Show("Por favor, conecte-se ao banco de dados primeiro.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                 return;
             }
 
             try
             {
                 toolStripStatusLabel.Text = "Carregando tabelas...";
-                _allTables = _metadataRepository.GetAllTables();
-                SortAndDisplayTables();
+                var group = _tableGroups.FirstOrDefault(g => g.GroupName == cmbTableGroups.Text);
+                
+                _allTables = _metadataRepository.GetAllTables(group?.ToWhere(), group?.Tables); 
+                
+                SortAndDisplayTables(group == null);
+
                 toolStripStatusLabel.Text = "Tabelas carregadas";
             }
             catch (Exception ex)
@@ -183,21 +195,30 @@ namespace PLSQLExportTool.Forms
             }
         }
 
-        private void SortAndDisplayTables()
+        private void SortAndDisplayTables(bool ordenacao)
         {
             if (_allTables == null) return;
 
             // Ordenação
+
+
             if (_sortBy == "Name")
             {
+
                 _allTables = _sortOrder == SortOrder.Ascending
-                    ? _allTables.OrderBy(t => t.TableName).ToList()
-                    : _allTables.OrderByDescending(t => t.TableName).ToList();
+                           ? _allTables
+                            .OrderBy(t => t.MinMax == null ? 1 : 0) // P1: Garante que MinMax null (chave 1) vá para o final
+                            .ThenBy(t => t.TableName)               // P2: Ordenação secundária por TableName
+                            .ToList()
+                          : _allTables
+                            .OrderByDescending(t => t.TableName)    // Se for descendente, ordena apenas por TableName
+                            .ToList();
             }
             else if (_sortBy == "Rows")
             {
                 _allTables = _sortOrder == SortOrder.Ascending
-                    ? _allTables.OrderBy(t => t.NumRows).ToList()
+                    ? _allTables.OrderBy(t => t.MinMax == null ? 1 : 0) // P1: Garante que MinMax null (chave 1) vá para o final
+                                .ThenBy(t => t.NumRows).ToList()
                     : _allTables.OrderByDescending(t => t.NumRows).ToList();
             }
 
@@ -224,7 +245,7 @@ namespace PLSQLExportTool.Forms
                 _sortBy = "Name";
                 _sortOrder = SortOrder.Ascending;
             }
-            SortAndDisplayTables();
+            SortAndDisplayTables(false);
         }
 
         private void btnSortByRowsExport_Click(object sender, EventArgs e)
@@ -238,12 +259,13 @@ namespace PLSQLExportTool.Forms
                 _sortBy = "Rows";
                 _sortOrder = SortOrder.Ascending;
             }
-            SortAndDisplayTables();
+            SortAndDisplayTables(false);
         }
 
         private void cmbTableGroups_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (_allTables == null || cmbTableGroups.SelectedIndex == -1) return;
+            btnRefreshExportTables.PerformClick();
+            /*if (_allTables == null || cmbTableGroups.SelectedIndex == -1) return;
 
             // Habilitar o controle para seleção
             checkedListExportTables.Enabled = true;
@@ -263,8 +285,8 @@ namespace PLSQLExportTool.Forms
             }
 
             var group = _tableGroups.FirstOrDefault(g => g.GroupName == selectedGroup);
-            if (group == null) return;
-
+            if (group == null) 
+                return;
             var tablesInGroup = group.Tables.Select(t => t.TableName).ToList();
 
             // Marcar apenas as tabelas do grupo
@@ -275,7 +297,7 @@ namespace PLSQLExportTool.Forms
                 {
                     checkedListExportTables.SetItemChecked(i, true);
                 }
-            }
+            }*/
         }
 
         private void btnSelectAllExport_Click(object sender, EventArgs e)
@@ -313,18 +335,18 @@ namespace PLSQLExportTool.Forms
             SaveFileDialog saveFileDialog = new SaveFileDialog();
             saveFileDialog.Filter = "SQL Script (*.sql)|*.sql";
             saveFileDialog.Title = "Salvar Script DML de Exportação";
-            saveFileDialog.FileName = "export_dml.sql";
+            saveFileDialog.FileName = cmbTableGroups.Text + ".sql";
 
             if (saveFileDialog.ShowDialog() == DialogResult.OK)
             {
                 try
                 {
                     toolStripStatusLabel.Text = "Exportando DML...";
-                    string whereClause = txtWhereClause.Text.Trim();
+                    //string whereClause = txtWhereClause.Text.Trim();
 
                     // Preparar lista conforme assinatura do ExportManager
                     var tablesToExport = selectedTables
-                        .Select(t => (TableName: t.TableName, WhereClause: whereClause))
+                        .Select(t => (t.TableName, t.Where, t.MinMax))
                         .ToList();
 
                     // Chama o método que grava o arquivo diretamente
@@ -339,16 +361,6 @@ namespace PLSQLExportTool.Forms
                     toolStripStatusLabel.Text = "Erro na exportação";
                 }
             }
-        }
-
-        private void txtWhereClause_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void tabConnection_Click(object sender, EventArgs e)
-        {
-
         }
     }
 }

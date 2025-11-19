@@ -11,6 +11,8 @@ namespace PLSQLExportTool.Models
         /// Nome da tabela
         /// </summary>
         public string TableName { get; set; }
+        public string Where { get; set; }
+        public string MinMax { get; set; }
 
         /// <summary>
         /// Número de linhas (aproximado)

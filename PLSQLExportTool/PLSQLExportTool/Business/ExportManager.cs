@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using PLSQLExportTool.Data;
 using PLSQLExportTool.Models;
@@ -14,6 +15,8 @@ namespace PLSQLExportTool.Business
     {
         private OracleQueryExecutor _queryExecutor;
         private MetadataRepository _metadataRepository;
+        private Int64 minId = Int64.MaxValue;
+        private Int64 maxId = 0;
 
         /// <summary>
         /// Construtor
@@ -31,8 +34,9 @@ namespace PLSQLExportTool.Business
         /// </summary>
         /// <param name="tableNames">Lista de nomes de tabelas</param>
         /// <param name="outputFilePath">Caminho do arquivo de saída</param>
-        public void ExportTablesDML(List<(string TableName, string WhereClause)> tablesToExport, string outputFilePath)
+        public void ExportTablesDML(List<(string TableName, string WhereClause, string MinMax)> tablesToExport, string outputFilePath)
         {
+
             if (tablesToExport == null || tablesToExport.Count == 0)
             {
                 throw new ArgumentException("Nenhuma tabela selecionada para exportação.");
@@ -53,35 +57,52 @@ namespace PLSQLExportTool.Business
             dmlScript.AppendLine("-- ========================================");
             dmlScript.AppendLine();
 
+            
             // Exportar cada tabela
             foreach (var table in tablesToExport)
             {
                 try
                 {
+                    var novoWhere = table.WhereClause;
                     dmlScript.AppendLine($"-- ========================================");
                     dmlScript.AppendLine($"-- Tabela: {table.TableName}");
-                    if (!string.IsNullOrEmpty(table.WhereClause))
+                    if (!string.IsNullOrEmpty(novoWhere))
                     {
-                        dmlScript.AppendLine($"-- Filtro WHERE: {table.WhereClause}");
+                        if (novoWhere.Contains(":MIN"))
+                        {
+                            novoWhere = novoWhere.Replace(":MIN_ID", minId.ToString());
+                            novoWhere = novoWhere.Replace(":MAX_ID", maxId.ToString());
+                        }
+
+                        dmlScript.AppendLine($"-- Filtro WHERE: {novoWhere}");
                     }
                     dmlScript.AppendLine($"-- ========================================");
                     dmlScript.AppendLine();
 
                     // Ajuste: MetadataRepository tem GetTableDML(string). Usa-se a versão existente.
-                    List<string> insertStatements = _metadataRepository.GetTableDML(table.TableName);
-                    
-                    if (insertStatements.Count > 0)
+                    List<string> insertStatements = _metadataRepository.GetTableDML(table.TableName, novoWhere, table.MinMax, ref minId, ref maxId);
+
+                    if (insertStatements.Count <= 0)
                     {
-                        dmlScript.AppendLine($"-- {insertStatements.Count} registros encontrados");
-                        foreach (string insert in insertStatements)
-                        {
-                            dmlScript.AppendLine(insert);
-                        }
+                        dmlScript.AppendLine("-- Nenhuma linha encontrada para exportação.");
                         dmlScript.AppendLine();
                     }
                     else
                     {
-                        dmlScript.AppendLine("-- Nenhuma linha encontrada para exportação.");
+                        var count = 0;
+                        dmlScript.AppendLine($"-- {insertStatements.Count} registros encontrados");
+
+                        foreach (string insert in insertStatements)
+                        {
+
+                            dmlScript.AppendLine(insert);
+                            count++;
+                            if (count % 100 == 0)
+                            {
+                                dmlScript.AppendLine($"commit;");
+                            }
+                        }
+                        dmlScript.AppendLine($"commit;");
                         dmlScript.AppendLine();
                     }
                 }

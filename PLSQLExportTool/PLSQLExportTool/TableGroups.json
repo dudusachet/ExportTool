@@ -72,7 +72,8 @@
     "Tables": [
       {
         "TableName": "WMS_CARGAS",
-        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7"
+        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7",
+        "MinMax": "ID"
       },
       {
         "TableName": "PEDIDOS_ERP",
@@ -109,7 +110,8 @@
     "Tables": [
       {
         "TableName": "PEDIDOS",
-        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7"
+        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7",
+        "MinMax": "ID"
       },
       {
         "TableName": "LINHAS_PEDIDOS",
