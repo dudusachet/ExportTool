@@ -70,7 +70,7 @@ namespace PLSQLExportTool.Forms
         {
             if (_connectionManager.IsConnected)
             {
-                lblConnectionStatus.Text = "Status: CONECTADO";
+                lblConnectionStatus.Text = "Status: Conectado";
                 lblConnectionStatus.ForeColor = Color.Green;
             }
             else
@@ -265,39 +265,40 @@ namespace PLSQLExportTool.Forms
         private void cmbTableGroups_SelectedIndexChanged(object sender, EventArgs e)
         {
             btnRefreshExportTables.PerformClick();
-            /*if (_allTables == null || cmbTableGroups.SelectedIndex == -1) return;
 
-            // Habilitar o controle para seleção
-            checkedListExportTables.Enabled = true;
+            // O usuário quer que ao selecionar um grupo, todas as tabelas desse grupo sejam marcadas.
+            // O carregamento das tabelas já é feito em btnRefreshExportTables.PerformClick().
+            
+            if (_allTables == null || cmbTableGroups.SelectedIndex == -1) return;
 
             string selectedGroup = cmbTableGroups.SelectedItem.ToString();
 
-            // Desmarcar tudo primeiro
-            for (int i = 0; i < checkedListExportTables.Items.Count; i++)
-            {
-                checkedListExportTables.SetItemChecked(i, false);
-            }
-
+            // Se o item selecionado for "Todos" (SelectedIndex == 0), habilita a seleção manual e o WHERE manual.
             if (selectedGroup == "Todos")
             {
-                // Não faz nada, apenas desmarcou
+                // Desmarca tudo para começar do zero
+                for (int i = 0; i < checkedListExportTables.Items.Count; i++)
+                {
+                    checkedListExportTables.SetItemChecked(i, false);
+                }
+                checkedListExportTables.Enabled = true; // Habilita a seleção manual
+                txtWhereClause.Enabled = true; // Habilita o WHERE manual
                 return;
             }
 
+            // Se um grupo específico foi selecionado
             var group = _tableGroups.FirstOrDefault(g => g.GroupName == selectedGroup);
             if (group == null) 
                 return;
-            var tablesInGroup = group.Tables.Select(t => t.TableName).ToList();
 
-            // Marcar apenas as tabelas do grupo
+            // Marca todas as tabelas carregadas (que já são as do grupo, pois btnRefreshExportTables.PerformClick() filtrou)
             for (int i = 0; i < checkedListExportTables.Items.Count; i++)
             {
-                TableInfo table = checkedListExportTables.Items[i] as TableInfo;
-                if (table != null && tablesInGroup.Contains(table.TableName))
-                {
-                    checkedListExportTables.SetItemChecked(i, true);
-                }
-            }*/
+                checkedListExportTables.SetItemChecked(i, true);
+            }
+            
+            checkedListExportTables.Enabled = true; // Habilita a seleção manual, mas o usuário pode desmarcar (novo requisito)
+            txtWhereClause.Enabled = false; // Desabilita o WHERE manual, pois o WHERE do grupo será usado.
         }
 
         private void btnSelectAllExport_Click(object sender, EventArgs e)
@@ -333,20 +334,37 @@ namespace PLSQLExportTool.Forms
             }
 
             SaveFileDialog saveFileDialog = new SaveFileDialog();
-            saveFileDialog.Filter = "SQL Script (*.sql)|*.sql";
+            saveFileDialog.Filter = "Scripts SQL (*.sql;*.pdc)|*.sql;*.pdc";
             saveFileDialog.Title = "Salvar Script DML de Exportação";
-            saveFileDialog.FileName = cmbTableGroups.Text + ".sql";
+            saveFileDialog.FileName = cmbTableGroups.Text + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".pdc";
 
             if (saveFileDialog.ShowDialog() == DialogResult.OK)
             {
                 try
                 {
                     toolStripStatusLabel.Text = "Exportando DML...";
-                    //string whereClause = txtWhereClause.Text.Trim();
+                    // A cláusula WHERE agora é tratada individualmente por tabela no Select abaixo.
+                    string manualWhere = txtWhereClause.Text.Trim();
+                    bool isGroupSelected = cmbTableGroups.SelectedIndex > 0;
 
                     // Preparar lista conforme assinatura do ExportManager
                     var tablesToExport = selectedTables
-                        .Select(t => (t.TableName, t.Where, t.MinMax))
+                        .Select(t =>
+                        {
+                            string finalWhere = t.Where; // WHERE predefinido do TableGroup ou null
+
+                            // Se NENHUM grupo está selecionado ("Todos" está selecionado) E há um WHERE manual,
+                            // usa o WHERE manual para todas as tabelas selecionadas.
+                            if (!isGroupSelected && !string.IsNullOrEmpty(manualWhere))
+                            {
+                                // Remove ponto e vírgula final, se houver, para evitar ORA-00933
+                                finalWhere = manualWhere.TrimEnd(';');
+                            }
+                            // Se um grupo está selecionado, o WHERE predefinido (t.Where) é usado.
+                            // Se "Todos" está selecionado e NÃO há WHERE manual, finalWhere permanece null (ou o valor de t.Where, que deve ser null neste caso).
+
+                            return (t.TableName, finalWhere, t.MinMax);
+                        })
                         .ToList();
 
                     // Chama o método que grava o arquivo diretamente
