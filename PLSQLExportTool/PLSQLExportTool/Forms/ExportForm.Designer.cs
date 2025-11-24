@@ -53,6 +53,7 @@ namespace PLSQLExportTool.Forms
             this.label6 = new System.Windows.Forms.Label();
             this.btnDeselectAllExport = new System.Windows.Forms.Button();
             this.btnSelectAllExport = new System.Windows.Forms.Button();
+            this.btnExport = new System.Windows.Forms.Button();
             this.txtWhereClause = new System.Windows.Forms.TextBox();
             this.lblWhereClause = new System.Windows.Forms.Label();
             this.btnRefreshExportTables = new System.Windows.Forms.Button();
@@ -60,7 +61,6 @@ namespace PLSQLExportTool.Forms
             this.lblExportTables = new System.Windows.Forms.Label();
             this.statusStrip = new System.Windows.Forms.StatusStrip();
             this.toolStripStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
-            this.btnExport = new System.Windows.Forms.Button();
             this.tabControl.SuspendLayout();
             this.tabConnection.SuspendLayout();
             this.tabExport.SuspendLayout();
@@ -361,6 +361,19 @@ namespace PLSQLExportTool.Forms
             this.btnSelectAllExport.UseVisualStyleBackColor = true;
             this.btnSelectAllExport.Click += new System.EventHandler(this.btnSelectAllExport_Click);
             // 
+            // btnExport
+            // 
+            this.btnExport.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnExport.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnExport.Location = new System.Drawing.Point(447, 368);
+            this.btnExport.Margin = new System.Windows.Forms.Padding(2);
+            this.btnExport.Name = "btnExport";
+            this.btnExport.Size = new System.Drawing.Size(131, 24);
+            this.btnExport.TabIndex = 5;
+            this.btnExport.Text = "Exportar DML";
+            this.btnExport.UseVisualStyleBackColor = true;
+            this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
+            // 
             // txtWhereClause
             // 
             this.txtWhereClause.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
@@ -433,19 +446,6 @@ namespace PLSQLExportTool.Forms
             this.toolStripStatusLabel.Size = new System.Drawing.Size(43, 17);
             this.toolStripStatusLabel.Text = "Pronto";
             // 
-            // btnExport
-            // 
-            this.btnExport.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnExport.Font = new System.Drawing.Font("Microsoft YaHei", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnExport.Location = new System.Drawing.Point(447, 368);
-            this.btnExport.Margin = new System.Windows.Forms.Padding(2);
-            this.btnExport.Name = "btnExport";
-            this.btnExport.Size = new System.Drawing.Size(131, 24);
-            this.btnExport.TabIndex = 5;
-            this.btnExport.Text = "Exportar DML";
-            this.btnExport.UseVisualStyleBackColor = true;
-            this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
-            // 
             // ExportForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -496,12 +496,12 @@ namespace PLSQLExportTool.Forms
         private System.Windows.Forms.Button btnRefreshExportTables;
         private System.Windows.Forms.TextBox txtWhereClause;
         private System.Windows.Forms.Label lblWhereClause;
+        private System.Windows.Forms.Button btnExport;
         private System.Windows.Forms.Button btnDeselectAllExport;
         private System.Windows.Forms.Button btnSelectAllExport;
         private System.Windows.Forms.ComboBox cmbTableGroups;
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Button btnSortByRowsExport;
         private System.Windows.Forms.Button btnSortByNameExport;
-        private System.Windows.Forms.Button btnExport;
     }
 }

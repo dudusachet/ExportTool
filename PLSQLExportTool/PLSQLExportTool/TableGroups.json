@@ -355,5 +355,101 @@
         "TableName": "WMS_TURNOS"
       }
     ]
+  },
+  {
+    "GroupName": "Recebimento",
+    "Tables": [
+      {
+        "TableName": "WMS_AUTORIZACOES",
+        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7",
+        "MinMax": "AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_AUTORIZACOES_DOCUMENTOS",
+        "Where": "WHERE AUTORIZACAO BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_AUTORIZACOES_RECEBIMENTOS",
+        "Where": "WHERE AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_AUTORIZACOES_RESERVA",
+        "Where": "WHERE AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_AUTORIZACOES_DIVERGENCIAS",
+        "Where": "WHERE AUTORIZACAO BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_LINHAS_AUTORIZADAS",
+        "Where": "WHERE AUTREC_AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_RECEBIMENTOS",
+        "Where": "WHERE AUTREC_AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_RECEBIMENTOS_LOTES",
+        "Where": "WHERE AUTREC_AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_TAREFAS_CD",
+        "Where": "WHERE AUTREC_AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_SUB_TAREFAS_CD",
+        "Where": "WHERE TARCD_COD_TAREFA_CD IN (SELECT COD_TAREFA_CD FROM WMS_TAREFAS_CD WHERE AUTREC_AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO)"
+      }
+    ]
+  },
+  {
+    "GroupName": "Itens e Dados Logísticos",
+    "Tables": [
+      {
+        "TableName": "ITEM"
+      },
+      {
+        "TableName": "ITEM_CROSS_DOCKING"
+      },
+      {
+        "TableName": "ITEM_FORNECEDOR"
+      },
+      {
+        "TableName": "ITEM_UNID_MED"
+      },
+      {
+        "TableName": "WMS_ITENS_LOGISTICAS"
+      },
+      {
+        "TableName": "WMS_COMPOSICAO_ITEM"
+      },
+      {
+        "TableName": "WMS_ETIQUETAS_ITENS"
+      },
+      {
+        "TableName": "WMS_ETIQUETAS"
+      },
+      {
+        "TableName": "WMS_EMBALAGENS"
+      }
+    ]
+  },
+  {
+    "GroupName": "Outras Tarefas",
+    "Tables": [
+      {
+        "TableName": "WMS_TAREFAS_CD",
+        "Where": "WHERE AUTREC_AUTREC_ID IS NULL AND PEDIDO_ID IS NULL AND DTHR >= TRUNC(SYSDATE)-7",
+        "MinMax": "COD_TAREFA_CD"
+      },
+      {
+        "TableName": "WMS_SUB_TAREFAS_CD",
+        "Where": "WHERE TARCD_COD_TAREFA_CD BETWEEN :MIN_COD_TAREFA_CD AND :MAX_COD_TAREFA_CD"
+      },
+      {
+        "TableName": "WMS_TAREFAS_GERAL",
+        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7"
+      }
+    ]
   }
 ]

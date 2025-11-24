@@ -5,13 +5,12 @@ using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using PLSQLExportTool.Data;
 using PLSQLExportTool.Business;
 using PLSQLExportTool.Models;
 using System.IO;
-using System.Text.Json;
+using Newtonsoft.Json;
 
 namespace PLSQLExportTool.Forms
 {
@@ -29,6 +28,7 @@ namespace PLSQLExportTool.Forms
         public ExportForm()
         {
             InitializeComponent();
+
             // Inicialização das dependências
             _connectionManager = new OracleConnectionManager();
             _queryExecutor = new OracleQueryExecutor(_connectionManager);
@@ -50,7 +50,7 @@ namespace PLSQLExportTool.Forms
         }
 
         // ====================================================================
-        // Conexão
+        // MÉTODOS DE CONEXÃO (RESTAURADOS)
         // ====================================================================
 
         private void UpdateConnectionString()
@@ -138,7 +138,7 @@ namespace PLSQLExportTool.Forms
         }
 
         // ====================================================================
-        // Exportação
+        // EXPORTAÇÃO E CARREGAMENTO
         // ====================================================================
 
         private void LoadTableGroups()
@@ -153,7 +153,7 @@ namespace PLSQLExportTool.Forms
                 }
 
                 string jsonString = File.ReadAllText(jsonPath);
-                _tableGroups = JsonSerializer.Deserialize<List<TableGroup>>(jsonString);
+                _tableGroups = JsonConvert.DeserializeObject<List<TableGroup>>(jsonString);
 
                 cmbTableGroups.Items.Clear();
                 cmbTableGroups.Items.Add("Todos");
@@ -174,16 +174,16 @@ namespace PLSQLExportTool.Forms
             if (!_connectionManager.IsConnected)
             {
                 MessageBox.Show("Por favor, conecte-se ao banco de dados primeiro.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                 return;
+                return;
             }
 
             try
             {
                 toolStripStatusLabel.Text = "Carregando tabelas...";
                 var group = _tableGroups.FirstOrDefault(g => g.GroupName == cmbTableGroups.Text);
-                
-                _allTables = _metadataRepository.GetAllTables(group?.ToWhere(), group?.Tables); 
-                
+
+                _allTables = _metadataRepository.GetAllTables(group != null ? group.ToWhere() : null, group != null ? group.Tables : null);
+
                 SortAndDisplayTables(group == null);
 
                 toolStripStatusLabel.Text = "Tabelas carregadas";
@@ -199,40 +199,32 @@ namespace PLSQLExportTool.Forms
         {
             if (_allTables == null) return;
 
-            // Ordenação
-
-
             if (_sortBy == "Name")
             {
-
                 _allTables = _sortOrder == SortOrder.Ascending
-                           ? _allTables
-                            .OrderBy(t => t.MinMax == null ? 1 : 0) // P1: Garante que MinMax null (chave 1) vá para o final
-                            .ThenBy(t => t.TableName)               // P2: Ordenação secundária por TableName
-                            .ToList()
-                          : _allTables
-                            .OrderByDescending(t => t.TableName)    // Se for descendente, ordena apenas por TableName
-                            .ToList();
+                           ? _allTables.OrderBy(t => t.MinMax == null ? 1 : 0).ThenBy(t => t.TableName).ToList()
+                           : _allTables.OrderByDescending(t => t.TableName).ToList();
             }
             else if (_sortBy == "Rows")
             {
                 _allTables = _sortOrder == SortOrder.Ascending
-                    ? _allTables.OrderBy(t => t.MinMax == null ? 1 : 0) // P1: Garante que MinMax null (chave 1) vá para o final
-                                .ThenBy(t => t.NumRows).ToList()
+                    ? _allTables.OrderBy(t => t.MinMax == null ? 1 : 0).ThenBy(t => t.NumRows).ToList()
                     : _allTables.OrderByDescending(t => t.NumRows).ToList();
             }
 
-            // Preservar o estado de checagem
             var checkedTables = checkedListExportTables.CheckedItems.Cast<TableInfo>().Select(t => t.TableName).ToList();
 
             checkedListExportTables.Items.Clear();
             foreach (var table in _allTables)
             {
                 checkedListExportTables.Items.Add(table, checkedTables.Contains(table.TableName));
-                // Habilitar o controle para seleção
-                checkedListExportTables.Enabled = true;
             }
+            checkedListExportTables.Enabled = true;
         }
+
+        // ====================================================================
+        // BOTÕES AUXILIARES (RESTAURADOS)
+        // ====================================================================
 
         private void btnSortByNameExport_Click(object sender, EventArgs e)
         {
@@ -266,39 +258,31 @@ namespace PLSQLExportTool.Forms
         {
             btnRefreshExportTables.PerformClick();
 
-            // O usuário quer que ao selecionar um grupo, todas as tabelas desse grupo sejam marcadas.
-            // O carregamento das tabelas já é feito em btnRefreshExportTables.PerformClick().
-            
             if (_allTables == null || cmbTableGroups.SelectedIndex == -1) return;
 
             string selectedGroup = cmbTableGroups.SelectedItem.ToString();
 
-            // Se o item selecionado for "Todos" (SelectedIndex == 0), habilita a seleção manual e o WHERE manual.
             if (selectedGroup == "Todos")
             {
-                // Desmarca tudo para começar do zero
                 for (int i = 0; i < checkedListExportTables.Items.Count; i++)
                 {
                     checkedListExportTables.SetItemChecked(i, false);
                 }
-                checkedListExportTables.Enabled = true; // Habilita a seleção manual
-                txtWhereClause.Enabled = true; // Habilita o WHERE manual
+                checkedListExportTables.Enabled = true;
+                txtWhereClause.Enabled = true;
                 return;
             }
 
-            // Se um grupo específico foi selecionado
             var group = _tableGroups.FirstOrDefault(g => g.GroupName == selectedGroup);
-            if (group == null) 
-                return;
+            if (group == null) return;
 
-            // Marca todas as tabelas carregadas (que já são as do grupo, pois btnRefreshExportTables.PerformClick() filtrou)
             for (int i = 0; i < checkedListExportTables.Items.Count; i++)
             {
                 checkedListExportTables.SetItemChecked(i, true);
             }
-            
-            checkedListExportTables.Enabled = true; // Habilita a seleção manual, mas o usuário pode desmarcar (novo requisito)
-            txtWhereClause.Enabled = false; // Desabilita o WHERE manual, pois o WHERE do grupo será usado.
+
+            checkedListExportTables.Enabled = true;
+            txtWhereClause.Enabled = false;
         }
 
         private void btnSelectAllExport_Click(object sender, EventArgs e)
@@ -317,6 +301,10 @@ namespace PLSQLExportTool.Forms
             }
         }
 
+        // ====================================================================
+        // EXPORTAÇÃO FINAL (CORRIGIDA PARA .NET 4.0)
+        // ====================================================================
+
         private void btnExport_Click(object sender, EventArgs e)
         {
             if (!_connectionManager.IsConnected)
@@ -334,40 +322,41 @@ namespace PLSQLExportTool.Forms
             }
 
             SaveFileDialog saveFileDialog = new SaveFileDialog();
-            saveFileDialog.Filter = "Scripts SQL (*.sql;*.pdc)|*.sql;*.pdc";
+            // CORREÇÃO DE FORMATO DO FILTRO
+            saveFileDialog.Filter = "SQL Script (*.sql)|*.sql";
             saveFileDialog.Title = "Salvar Script DML de Exportação";
-            saveFileDialog.FileName = cmbTableGroups.Text + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".pdc";
+
+            // CORREÇÃO DE DATA NO NOME DO ARQUIVO
+            string dataFormatada = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            saveFileDialog.FileName = $"{cmbTableGroups.Text}_{dataFormatada}.sql";
 
             if (saveFileDialog.ShowDialog() == DialogResult.OK)
             {
                 try
                 {
                     toolStripStatusLabel.Text = "Exportando DML...";
-                    // A cláusula WHERE agora é tratada individualmente por tabela no Select abaixo.
                     string manualWhere = txtWhereClause.Text.Trim();
                     bool isGroupSelected = cmbTableGroups.SelectedIndex > 0;
 
-                    // Preparar lista conforme assinatura do ExportManager
+                    // PREPARAÇÃO DOS DADOS USANDO CLASSE (SEM TUPLAS)
                     var tablesToExport = selectedTables
                         .Select(t =>
                         {
-                            string finalWhere = t.Where; // WHERE predefinido do TableGroup ou null
+                            string finalWhere = t.Where;
 
-                            // Se NENHUM grupo está selecionado ("Todos" está selecionado) E há um WHERE manual,
-                            // usa o WHERE manual para todas as tabelas selecionadas.
                             if (!isGroupSelected && !string.IsNullOrEmpty(manualWhere))
                             {
-                                // Remove ponto e vírgula final, se houver, para evitar ORA-00933
                                 finalWhere = manualWhere.TrimEnd(';');
                             }
-                            // Se um grupo está selecionado, o WHERE predefinido (t.Where) é usado.
-                            // Se "Todos" está selecionado e NÃO há WHERE manual, finalWhere permanece null (ou o valor de t.Where, que deve ser null neste caso).
+                            TableExportData data = new TableExportData();
+                            data.TableName = t.TableName;
+                            data.WhereClause = finalWhere;
+                            data.MinMax = t.MinMax;
 
-                            return (t.TableName, finalWhere, t.MinMax);
+                            return data;
                         })
                         .ToList();
 
-                    // Chama o método que grava o arquivo diretamente
                     _exportManager.ExportTablesDML(tablesToExport, saveFileDialog.FileName);
 
                     MessageBox.Show($"Exportação DML concluída com sucesso!\nArquivo: {saveFileDialog.FileName}", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
