@@ -30,6 +30,7 @@ namespace PLSQLExportTool.Forms
         {
             this.tabControl = new System.Windows.Forms.TabControl();
             this.tabConnection = new System.Windows.Forms.TabPage();
+            this.btnPasteString = new System.Windows.Forms.Button();
             this.btnDisconnect = new System.Windows.Forms.Button();
             this.btnConnect = new System.Windows.Forms.Button();
             this.btnTestConnection = new System.Windows.Forms.Button();
@@ -81,6 +82,7 @@ namespace PLSQLExportTool.Forms
             // 
             // tabConnection
             // 
+            this.tabConnection.Controls.Add(this.btnPasteString);
             this.tabConnection.Controls.Add(this.btnDisconnect);
             this.tabConnection.Controls.Add(this.btnConnect);
             this.tabConnection.Controls.Add(this.btnTestConnection);
@@ -105,6 +107,17 @@ namespace PLSQLExportTool.Forms
             this.tabConnection.TabIndex = 0;
             this.tabConnection.Text = "Conexão";
             this.tabConnection.UseVisualStyleBackColor = true;
+            // 
+            // btnPasteString
+            // 
+            this.btnPasteString.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnPasteString.Location = new System.Drawing.Point(495, 30);
+            this.btnPasteString.Name = "btnPasteString";
+            this.btnPasteString.Size = new System.Drawing.Size(85, 23);
+            this.btnPasteString.TabIndex = 16;
+            this.btnPasteString.Text = "Colar String";
+            this.btnPasteString.UseVisualStyleBackColor = true;
+            this.btnPasteString.Click += new System.EventHandler(this.btnPasteString_Click);
             // 
             // btnDisconnect
             // 
@@ -256,7 +269,7 @@ namespace PLSQLExportTool.Forms
             this.txtConnectionString.Margin = new System.Windows.Forms.Padding(2);
             this.txtConnectionString.Name = "txtConnectionString";
             this.txtConnectionString.ReadOnly = true;
-            this.txtConnectionString.Size = new System.Drawing.Size(565, 20);
+            this.txtConnectionString.Size = new System.Drawing.Size(475, 20);
             this.txtConnectionString.TabIndex = 1;
             // 
             // lblConnectionString
@@ -364,7 +377,7 @@ namespace PLSQLExportTool.Forms
             // btnExport
             // 
             this.btnExport.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnExport.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnExport.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnExport.Location = new System.Drawing.Point(447, 368);
             this.btnExport.Margin = new System.Windows.Forms.Padding(2);
             this.btnExport.Name = "btnExport";
@@ -503,5 +516,6 @@ namespace PLSQLExportTool.Forms
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Button btnSortByRowsExport;
         private System.Windows.Forms.Button btnSortByNameExport;
+        private System.Windows.Forms.Button btnPasteString; // DECLARAÇÃO DO NOVO BOTÃO
     }
 }

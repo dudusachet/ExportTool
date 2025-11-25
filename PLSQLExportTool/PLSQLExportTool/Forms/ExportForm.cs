@@ -11,6 +11,7 @@ using PLSQLExportTool.Business;
 using PLSQLExportTool.Models;
 using System.IO;
 using Newtonsoft.Json;
+using System.Text.RegularExpressions; // Necessário para o botão Colar String
 
 namespace PLSQLExportTool.Forms
 {
@@ -50,7 +51,7 @@ namespace PLSQLExportTool.Forms
         }
 
         // ====================================================================
-        // MÉTODOS DE CONEXÃO (RESTAURADOS)
+        // MÉTODOS DE CONEXÃO
         // ====================================================================
 
         private void UpdateConnectionString()
@@ -88,6 +89,40 @@ namespace PLSQLExportTool.Forms
         {
             UpdateConnectionString();
         }
+
+        // --- NOVA LÓGICA DO BOTÃO COLAR STRING ---
+        private void btnPasteString_Click(object sender, EventArgs e)
+        {
+            if (Clipboard.ContainsText())
+            {
+                string textoCopiado = Clipboard.GetText();
+                ImportarStringConexao(textoCopiado);
+            }
+        }
+
+        private void ImportarStringConexao(string rawString)
+        {
+            // Regex para extrair: Usuario/Senha@//Host:Porta/Servico
+            string pattern = @"^(?<user>[^/]+)/(?<pass>[^@]+)@(?://)?(?<host>[^:/]+):(?<port>\d+)/(?<service>.+)$";
+
+            var match = Regex.Match(rawString.Trim(), pattern);
+
+            if (match.Success)
+            {
+                txtUserId.Text = match.Groups["user"].Value;
+                txtPassword.Text = match.Groups["pass"].Value;
+                txtHost.Text = match.Groups["host"].Value;
+                txtPort.Text = match.Groups["port"].Value;
+                txtServiceName.Text = match.Groups["service"].Value;
+
+                MessageBox.Show("Dados colados e preenchidos com sucesso!", "Importação", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                MessageBox.Show("O formato da string na área de transferência não é válido.\n\nFormato esperado: Usuario/Senha@//Host:Porta/Servico", "Erro de Formato", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+        // ------------------------------------------
 
         private void btnTestConnection_Click(object sender, EventArgs e)
         {
@@ -223,7 +258,7 @@ namespace PLSQLExportTool.Forms
         }
 
         // ====================================================================
-        // BOTÕES AUXILIARES (RESTAURADOS)
+        // BOTÕES AUXILIARES
         // ====================================================================
 
         private void btnSortByNameExport_Click(object sender, EventArgs e)
@@ -302,11 +337,17 @@ namespace PLSQLExportTool.Forms
         }
 
         // ====================================================================
-        // EXPORTAÇÃO FINAL (CORRIGIDA PARA .NET 4.0)
+        // EXPORTAÇÃO FINAL
         // ====================================================================
-
+        // Classe auxiliar para passar dados para o BackgroundWorker
+        private class ExportArguments
+        {
+            public List<TableExportData> Tables { get; set; }
+            public string FilePath { get; set; }
+        }
         private void btnExport_Click(object sender, EventArgs e)
         {
+            // --- Validações (Iguais ao seu código anterior) ---
             if (!_connectionManager.IsConnected)
             {
                 MessageBox.Show("Por favor, conecte-se ao banco de dados primeiro.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -322,51 +363,88 @@ namespace PLSQLExportTool.Forms
             }
 
             SaveFileDialog saveFileDialog = new SaveFileDialog();
-            // CORREÇÃO DE FORMATO DO FILTRO
-            saveFileDialog.Filter = "SQL Script (*.sql)|*.sql";
+            saveFileDialog.Filter = "SQL Script (*.sql;*.pdc)|*.sql;*.pdc";
             saveFileDialog.Title = "Salvar Script DML de Exportação";
-
-            // CORREÇÃO DE DATA NO NOME DO ARQUIVO
             string dataFormatada = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            saveFileDialog.FileName = $"{cmbTableGroups.Text}_{dataFormatada}.sql";
+            saveFileDialog.FileName = $"{cmbTableGroups.Text}_{dataFormatada}.sql.pdc";
 
             if (saveFileDialog.ShowDialog() == DialogResult.OK)
             {
-                try
+                // 1. Prepara os dados AQUI (Na Thread principal)
+                // Isso é necessário porque o BackgroundWorker não pode ler txtWhereClause.Text diretamente
+                string manualWhere = txtWhereClause.Text.Trim();
+                bool isGroupSelected = cmbTableGroups.SelectedIndex > 0;
+
+                var tablesToExport = selectedTables.Select(t =>
                 {
-                    toolStripStatusLabel.Text = "Exportando DML...";
-                    string manualWhere = txtWhereClause.Text.Trim();
-                    bool isGroupSelected = cmbTableGroups.SelectedIndex > 0;
+                    string finalWhere = t.Where;
+                    if (!isGroupSelected && !string.IsNullOrEmpty(manualWhere))
+                    {
+                        finalWhere = manualWhere.TrimEnd(';');
+                    }
+                    return new TableExportData
+                    {
+                        TableName = t.TableName,
+                        WhereClause = finalWhere,
+                        MinMax = t.MinMax
+                    };
+                }).ToList();
 
-                    // PREPARAÇÃO DOS DADOS USANDO CLASSE (SEM TUPLAS)
-                    var tablesToExport = selectedTables
-                        .Select(t =>
-                        {
-                            string finalWhere = t.Where;
-
-                            if (!isGroupSelected && !string.IsNullOrEmpty(manualWhere))
-                            {
-                                finalWhere = manualWhere.TrimEnd(';');
-                            }
-                            TableExportData data = new TableExportData();
-                            data.TableName = t.TableName;
-                            data.WhereClause = finalWhere;
-                            data.MinMax = t.MinMax;
-
-                            return data;
-                        })
-                        .ToList();
-
-                    _exportManager.ExportTablesDML(tablesToExport, saveFileDialog.FileName);
-
-                    MessageBox.Show($"Exportação DML concluída com sucesso!\nArquivo: {saveFileDialog.FileName}", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    toolStripStatusLabel.Text = "Exportação concluída";
-                }
-                catch (Exception ex)
+                // 2. Configura os argumentos
+                ExportArguments args = new ExportArguments
                 {
-                    MessageBox.Show($"Erro durante a exportação DML: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    toolStripStatusLabel.Text = "Erro na exportação";
-                }
+                    Tables = tablesToExport,
+                    FilePath = saveFileDialog.FileName
+                };
+
+                // 3. Configura o BackgroundWorker
+                BackgroundWorker worker = new BackgroundWorker();
+                worker.DoWork += Worker_DoWork; // Onde o trabalho pesado acontece
+                worker.RunWorkerCompleted += Worker_RunWorkerCompleted; // Onde termina
+
+                // 4. Trava a UI visualmente
+                this.Cursor = Cursors.WaitCursor; // Usa this.Cursor que é mais forte que Cursor.Current
+                toolStripStatusLabel.Text = "Exportando DML... (Aguarde)";
+                btnExport.Enabled = false; // Opcional: Evita duplo clique
+
+                // 5. Inicia o processo
+                worker.RunWorkerAsync(args);
+            }
+        }
+
+        // Este método roda em outra Thread. NÃO MEXA EM CONTROLES DE TELA AQUI (MessageBox, TextBox, etc)
+        private void Worker_DoWork(object sender, DoWorkEventArgs e)
+        {
+            // Recupera os argumentos passados
+            ExportArguments args = (ExportArguments)e.Argument;
+
+            // Chama seu ExportManager (Processo Pesado)
+            // Se der erro aqui, o BackgroundWorker captura e passa para o Completed
+            _exportManager.ExportTablesDML(args.Tables, args.FilePath);
+
+            // Passamos o caminho do arquivo como resultado para usar na mensagem de sucesso
+            e.Result = args.FilePath;
+        }
+
+        // Este método roda quando termina (Sucesso ou Erro) - Volta para a Thread da Tela
+        private void Worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            // 1. Restaura o Cursor e a UI
+            this.Cursor = Cursors.Default;
+            btnExport.Enabled = true;
+
+            // 2. Verifica se houve erro
+            if (e.Error != null)
+            {
+                MessageBox.Show($"Erro durante a exportação DML: {e.Error.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                toolStripStatusLabel.Text = "Erro na exportação";
+            }
+            else
+            {
+                // Sucesso
+                string filePath = (string)e.Result;
+                MessageBox.Show($"Exportação DML concluída com sucesso!\nArquivo: {filePath}", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                toolStripStatusLabel.Text = "Exportação concluída";
             }
         }
     }

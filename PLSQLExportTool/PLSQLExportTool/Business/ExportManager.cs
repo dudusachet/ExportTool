@@ -8,9 +8,6 @@ using PLSQLExportTool.Models;
 
 namespace PLSQLExportTool.Business
 {
-    // ==========================================================================
-    // CLASSE AUXILIAR (Necessária para substituir a Tupla no .NET 4.0)
-    // ==========================================================================
     public class TableExportData
     {
         public string TableName { get; set; }
@@ -18,9 +15,6 @@ namespace PLSQLExportTool.Business
         public string MinMax { get; set; }
     }
 
-    /// <summary>
-    /// Gerencia exportação de estruturas de banco de dados
-    /// </summary>
     public class ExportManager
     {
         private OracleQueryExecutor _queryExecutor;
@@ -28,15 +22,8 @@ namespace PLSQLExportTool.Business
         private Int64 minId = Int64.MaxValue;
         private Int64 maxId = 0;
 
-        /// <summary>
-        /// Construtor
-        /// </summary>
-        /// <param name="queryExecutor">Executor de queries</param>
-        /// <param name="metadataRepository">Repositório de metadados</param>
         public ExportManager(OracleQueryExecutor queryExecutor, MetadataRepository metadataRepository)
         {
-            // No .NET 4.0, nameof() funciona se usar VS mais novo para compilar, 
-            // se der erro, troque por string "queryExecutor"
             if (queryExecutor == null) throw new ArgumentNullException("queryExecutor");
             if (metadataRepository == null) throw new ArgumentNullException("metadataRepository");
 
@@ -44,44 +31,45 @@ namespace PLSQLExportTool.Business
             _metadataRepository = metadataRepository;
         }
 
-        /// <summary>
-        /// Exporta DML de tabelas selecionadas
-        /// </summary>
-        /// <param name="tablesToExport">Lista de dados das tabelas (Classe em vez de Tupla)</param>
-        /// <param name="outputFilePath">Caminho do arquivo de saída</param>
         public void ExportTablesDML(List<TableExportData> tablesToExport, string outputFilePath)
         {
             if (tablesToExport == null || tablesToExport.Count == 0)
-            {
                 throw new ArgumentException("Nenhuma tabela selecionada para exportação.");
-            }
 
             if (string.IsNullOrEmpty(outputFilePath))
-            {
                 throw new ArgumentException("Caminho do arquivo de saída não pode ser vazio.");
-            }
 
             StringBuilder dmlScript = new StringBuilder();
 
-            // Cabeçalho do script
-            dmlScript.AppendLine("-- ========================================");
-            dmlScript.AppendLine("-- Script de Exportação DML (INSERT)");
-            // Interpolação de string ($"...") funciona no compilador moderno mesmo visando .NET 4.0.
-            // Se der erro, use string.Format("-- Gerado em: {0}", DateTime.Now);
-            dmlScript.AppendLine($"-- Gerado em: {DateTime.Now:dd/MM/yyyy HH:mm:ss}");
-            dmlScript.AppendLine($"-- Tabelas: {tablesToExport.Count}");
-            dmlScript.AppendLine("-- ========================================");
+            // ---------------------------------------------------------
+            // 1. Cabeçalho e Configurações Globais
+            // ---------------------------------------------------------
+            dmlScript.AppendLine("-- Configurações de Ambiente");
+            dmlScript.AppendLine("SET ECHO OFF");
+            dmlScript.AppendLine("SET FEEDBACK OFF");
+            dmlScript.AppendLine("SET VERIFY OFF");
+            dmlScript.AppendLine("SET DEFINE OFF");
+            dmlScript.AppendLine("SET HEADING OFF");
+            dmlScript.AppendLine("SET SQLBLANKLINES ON");
+            dmlScript.AppendLine("SET TIMING OFF");
             dmlScript.AppendLine();
 
-            // Exportar cada tabela
+            dmlScript.AppendLine("-- Script de Exportação DML (INSERT)");
+            dmlScript.AppendLine($"-- Gerado em: {DateTime.Now:dd/MM/yyyy HH:mm:ss}");
+            dmlScript.AppendLine($"-- Tabelas: {tablesToExport.Count}");
+            dmlScript.AppendLine();
+
+            // Log de Início Geral
+            dmlScript.AppendLine("SET TERMOUT ON");
+            dmlScript.AppendLine("SELECT 'Inicio do processo geral: ' || TO_CHAR(SYSDATE, 'DD/MM/YYYY HH24:MI:SS') FROM DUAL;");
+            dmlScript.AppendLine("SET TERMOUT OFF");
+            dmlScript.AppendLine();
+
             foreach (var table in tablesToExport)
             {
                 try
                 {
                     var novoWhere = table.WhereClause;
-                    dmlScript.AppendLine($"-- ========================================");
-                    dmlScript.AppendLine($"-- Tabela: {table.TableName}");
-
                     if (!string.IsNullOrEmpty(novoWhere))
                     {
                         if (novoWhere.Contains(":MIN"))
@@ -89,14 +77,10 @@ namespace PLSQLExportTool.Business
                             novoWhere = novoWhere.Replace(":MIN_ID", minId.ToString());
                             novoWhere = novoWhere.Replace(":MAX_ID", maxId.ToString());
                         }
-
-                        dmlScript.AppendLine($"-- Filtro WHERE: {novoWhere}");
                     }
-                    dmlScript.AppendLine($"-- ========================================");
-                    dmlScript.AppendLine();
 
-                    // Mantendo sua lógica original que chama o repositório
-                    // Agora acessando as propriedades da classe (.TableName, .MinMax)
+                    // PASSO IMPORTANTE: Buscamos os dados ANTES de escrever o log no script
+                    // Isso permite saber a contagem (Count) para o prompt
                     List<string> insertStatements = _metadataRepository.GetTableDML(
                         table.TableName,
                         novoWhere,
@@ -105,75 +89,89 @@ namespace PLSQLExportTool.Business
                         ref maxId
                     );
 
-                    if (insertStatements.Count <= 0)
-                    {
-                        dmlScript.AppendLine("-- Nenhuma linha encontrada para exportação.");
-                        dmlScript.AppendLine();
-                    }
-                    else
+                    // ---------------------------------------------------------
+                    // 3. Escreve o Bloco de Log (Visível)
+                    // ---------------------------------------------------------
+                    dmlScript.AppendLine("SET TERMOUT ON");
+
+                    dmlScript.AppendLine("prompt --------------------------------------------------------------------------------");
+                    // Mostra hora e nome da tabela
+                    dmlScript.AppendLine($"SELECT 'Iniciando tabela {table.TableName}: ' || TO_CHAR(SYSDATE, 'DD/MM/YYYY HH24:MI:SS') FROM DUAL;");
+
+                    // Mostra a contagem exata (ex: "Processando: WMS_ALMOXARIFADO - 11 registros encontrados")
+                    dmlScript.AppendLine($"prompt Processando: {table.TableName} - {insertStatements.Count} registros encontrados");
+
+                    // Agora desliga para os inserts não sujarem a tela
+                    dmlScript.AppendLine("SET TERMOUT OFF");
+
+                    // ---------------------------------------------------------
+                    // 4. Escreve os Inserts (Invisíveis)
+                    // ---------------------------------------------------------
+                    if (insertStatements.Count > 0)
                     {
                         var count = 0;
-                        dmlScript.AppendLine($"-- {insertStatements.Count} registros encontrados");
+                        dmlScript.AppendLine(); // Linha em branco estética no arquivo
 
                         foreach (string insert in insertStatements)
                         {
                             dmlScript.AppendLine(insert);
                             count++;
-                            // Commit a cada 100 registros
+
+                            // Commit a cada 100
                             if (count % 100 == 0)
                             {
-                                dmlScript.AppendLine($"commit;");
+                                dmlScript.AppendLine("commit;");
                             }
                         }
                         // Commit final da tabela
-                        dmlScript.AppendLine($"commit;");
-                        dmlScript.AppendLine();
+                        dmlScript.AppendLine("commit;");
                     }
+                    else
+                    {
+                        // Caso queria deixar registrado no arquivo que estava vazio, 
+                        // mesmo que não apareça na tela (já avisou 0 registros no prompt acima)
+                        dmlScript.AppendLine("-- Tabela vazia ou sem dados no filtro.");
+                    }
+
+                    dmlScript.AppendLine(); // Espaço entre tabelas
                 }
                 catch (Exception ex)
                 {
-                    dmlScript.AppendLine($"-- Erro ao exportar tabela {table.TableName}: {ex.Message}");
+                    // Erro: Força output ON para mostrar o erro
+                    dmlScript.AppendLine("SET TERMOUT ON");
+                    dmlScript.AppendLine($"prompt ERRO AO PROCESSAR TABELA {table.TableName}: {ex.Message}");
+                    dmlScript.AppendLine("SET TERMOUT OFF");
+                    dmlScript.AppendLine($"-- Detalhe: {ex.ToString()}");
                     dmlScript.AppendLine();
                 }
             }
 
-            // Rodapé do script
-            dmlScript.AppendLine("-- ========================================");
-            dmlScript.AppendLine("-- Fim do Script");
-            dmlScript.AppendLine("-- ========================================");
+            // ---------------------------------------------------------
+            // 5. Log de Fim Geral
+            // ---------------------------------------------------------
+            dmlScript.AppendLine("SET TERMOUT ON");
+            dmlScript.AppendLine("prompt --------------------------------------------------------------------------------");
+            dmlScript.AppendLine("SELECT 'Fim do processo: ' || TO_CHAR(SYSDATE, 'DD/MM/YYYY HH24:MI:SS') FROM DUAL;");
+            dmlScript.AppendLine("prompt --------------------------------------------------------------------------------");
 
-            // Salvar arquivo
+            // Grava o arquivo
             File.WriteAllText(outputFilePath, dmlScript.ToString(), Encoding.UTF8);
         }
 
-        /// <summary>
-        /// Gera script para reabilitar constraints
-        /// </summary>
+        // ... GenerateEnableConstraintsScript permanece igual ...
         public void GenerateEnableConstraintsScript(List<ConstraintInfo> constraints, string outputFilePath)
         {
-            if (constraints == null || constraints.Count == 0)
-            {
-                throw new ArgumentException("Nenhuma constraint selecionada.");
-            }
-
-            if (string.IsNullOrEmpty(outputFilePath))
-            {
-                throw new ArgumentException("Caminho do arquivo de saída não pode ser vazio.");
-            }
+            if (constraints == null || constraints.Count == 0) return;
 
             StringBuilder script = new StringBuilder();
-
             script.AppendLine("-- ========================================");
-            script.AppendLine("-- Script para Reabilitar Constraints");
-            script.AppendLine($"-- Gerado em: {DateTime.Now:dd/MM/yyyy HH:mm:ss}");
+            script.AppendLine($"-- Reabilitar Constraints - {DateTime.Now}");
             script.AppendLine("-- ========================================");
             script.AppendLine();
 
             foreach (ConstraintInfo constraint in constraints)
             {
-                script.AppendLine($"-- {constraint.ConstraintName} ({constraint.ConstraintTypeDescription})");
                 script.AppendLine($"ALTER TABLE {constraint.TableName} ENABLE CONSTRAINT {constraint.ConstraintName};");
-                script.AppendLine();
             }
 
             File.WriteAllText(outputFilePath, script.ToString(), Encoding.UTF8);

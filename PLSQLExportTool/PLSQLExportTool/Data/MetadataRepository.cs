@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using PLSQLExportTool.Models;
+using System.Globalization;
 namespace PLSQLExportTool.Data
 {
     /// <summary>
@@ -189,17 +190,24 @@ FROM USER_TABLES t
                         // Mas para um MVP, vamos tratar como string se não for número.
                         if (value is IConvertible convertible && IsNumericType(convertible.GetType()))
                         {
-                            values.Add(value.ToString());
+                            string aux = Convert.ToString(value, CultureInfo.InvariantCulture);
+                            values.Add(aux);
 
                             if (minMax != null && columnNames[i].Equals(minMax))
-                                {
-                                    Int64 valor = Convert.ToInt64(value.ToString());
-                                    if (valor < minId)
-                                        minId = valor;
-                                    if (valor > maxId)
-                                        maxId = valor;
-                                }
+                            {
+                                Int64 valor = Convert.ToInt64(value.ToString());
+                                if (valor < minId)
+                                    minId = valor;
+                                if (valor > maxId)
+                                    maxId = valor;
+                            }
 
+
+                        }
+                        else if (value is DateTime dateTimeValue)
+                        {
+                            // Formata data no padrão Oracle
+                            values.Add($"TO_DATE('{dateTimeValue:dd/MM/yyyy HH:mm:ss}', 'DD/MM/YYYY HH24:MI:SS')");
                         }
                         else
                         {
@@ -207,11 +215,12 @@ FROM USER_TABLES t
                             string stringValue = value.ToString().Replace("'", "''");
                             values.Add($"'{stringValue}'");
                         }
+
                     }
                 }
 
                 string valuesList = string.Join(", ", values);
-                dmlStatements.Add($"INSERT INTO {tableName} ({columnsList}) VALUES ({valuesList});");
+                dmlStatements.Add($"INSERT INTO {tableName} ({columnsList})\nVALUES ({valuesList});");
             }
 
             return dmlStatements;
