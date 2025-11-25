@@ -21,6 +21,10 @@ namespace PLSQLExportTool.Business
         private MetadataRepository _metadataRepository;
         private Int64 minId = Int64.MaxValue;
         private Int64 maxId = 0;
+        private Int64 minAutorizacao = Int64.MaxValue;
+        private Int64 maxAutorizacao = 0;
+
+
 
         public ExportManager(OracleQueryExecutor queryExecutor, MetadataRepository metadataRepository)
         {
@@ -76,6 +80,8 @@ namespace PLSQLExportTool.Business
                         {
                             novoWhere = novoWhere.Replace(":MIN_ID", minId.ToString());
                             novoWhere = novoWhere.Replace(":MAX_ID", maxId.ToString());
+                            novoWhere = novoWhere.Replace(":MIN_AUTORIZACAO", minAutorizacao.ToString());
+                            novoWhere = novoWhere.Replace(":MAX_AUTORIZACAO", maxAutorizacao.ToString());
                         }
                     }
 
@@ -86,7 +92,9 @@ namespace PLSQLExportTool.Business
                         novoWhere,
                         table.MinMax,
                         ref minId,
-                        ref maxId
+                        ref maxId,
+                        ref minAutorizacao,
+                        ref maxAutorizacao
                     );
 
                     // ---------------------------------------------------------
@@ -100,6 +108,7 @@ namespace PLSQLExportTool.Business
 
                     // Mostra a contagem exata (ex: "Processando: WMS_ALMOXARIFADO - 11 registros encontrados")
                     dmlScript.AppendLine($"prompt Processando: {table.TableName} - {insertStatements.Count} registros encontrados");
+                    dmlScript.AppendLine($"-- SELECT * FROM {table.TableName} {novoWhere};");
 
                     // Agora desliga para os inserts não sujarem a tela
                     dmlScript.AppendLine("SET TERMOUT OFF");
@@ -130,7 +139,7 @@ namespace PLSQLExportTool.Business
                     {
                         // Caso queria deixar registrado no arquivo que estava vazio, 
                         // mesmo que não apareça na tela (já avisou 0 registros no prompt acima)
-                        dmlScript.AppendLine("-- Tabela vazia ou sem dados no filtro.");
+                        dmlScript.AppendLine("-- Tabela vazia ou sem dados no filtro. ");
                     }
 
                     dmlScript.AppendLine(); // Espaço entre tabelas

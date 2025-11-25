@@ -41,7 +41,7 @@
     ]
   },
   {
-    "GroupName": "Estoque",
+    "GroupName": "Estoque Com Dados Logisticos",
     "Tables": [
       {
         "TableName": "WMS_CONSUMO_MEDIO"
@@ -68,7 +68,18 @@
     ]
   },
   {
-    "GroupName": "Cargas",
+    "GroupName": "Estoque Sem Dados Logisticos",
+    "Tables": [
+      {
+        "TableName": "WMS_CONSUMO_MEDIO"
+      },
+      {
+        "TableName": "WMS_ESTOQUES_CD"
+      }
+    ]
+  },
+  {
+    "GroupName": "Cargas Com Dados Logisticos",
     "Tables": [
       {
         "TableName": "WMS_CARGAS",
@@ -106,7 +117,29 @@
     ]
   },
   {
-    "GroupName": "Pedidos",
+    "GroupName": "Cargas Sem Dados Logisticos",
+    "Tables": [
+      {
+        "TableName": "WMS_CARGAS",
+        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7",
+        "MinMax": "ID"
+      },
+      {
+        "TableName": "PEDIDOS_ERP",
+        "Where": "WHERE CARGA_ID BETWEEN :MIN_ID AND :MAX_ID"
+      },
+      {
+        "TableName": "LINHAS_PEDIDOS_ERP",
+        "Where": "WHERE PEDIDO_ID IN (SELECT PEDIDOS_ERP.ID FROM PEDIDOS_ERP WHERE CARGA_ID BETWEEN :MIN_ID AND :MAX_ID)"
+      },
+      {
+        "TableName": "WMS_LINHAS_CARGAS",
+        "Where": "WHERE CARGA_ID BETWEEN :MIN_ID AND :MAX_ID"
+      }
+    ]
+  },
+  {
+    "GroupName": "Pedidos Sem Dados Logisticos",
     "Tables": [
       {
         "TableName": "PEDIDOS",
@@ -357,7 +390,7 @@
     ]
   },
   {
-    "GroupName": "Recebimento",
+    "GroupName": "Recebimento Sem Dados Logisticos",
     "Tables": [
       {
         "TableName": "WMS_AUTORIZACOES",
@@ -386,11 +419,11 @@
       },
       {
         "TableName": "WMS_RECEBIMENTOS",
-        "Where": "WHERE AUTREC_AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+        "Where": "WHERE WMS_RECEBIMENTO_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
       },
       {
         "TableName": "WMS_RECEBIMENTOS_LOTES",
-        "Where": "WHERE AUTREC_AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+        "Where": "WHERE AUTORIZACAO BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
       },
       {
         "TableName": "WMS_TAREFAS_CD",
@@ -403,7 +436,7 @@
     ]
   },
   {
-    "GroupName": "Itens e Dados Logísticos",
+    "GroupName": "Itens e Dados Logisticos",
     "Tables": [
       {
         "TableName": "ITEM"

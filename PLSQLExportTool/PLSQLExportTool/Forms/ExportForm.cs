@@ -365,8 +365,8 @@ namespace PLSQLExportTool.Forms
             SaveFileDialog saveFileDialog = new SaveFileDialog();
             saveFileDialog.Filter = "SQL Script (*.sql;*.pdc)|*.sql;*.pdc";
             saveFileDialog.Title = "Salvar Script DML de Exportação";
-            string dataFormatada = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            saveFileDialog.FileName = $"{cmbTableGroups.Text}_{dataFormatada}.sql.pdc";
+            string dataFormatada = DateTime.Now.ToString("yyyyMMdd_HHmm");
+            saveFileDialog.FileName = $"{cmbTableGroups.Text.Replace(" ", "_")}_{dataFormatada}.sql.pdc";
 
             if (saveFileDialog.ShowDialog() == DialogResult.OK)
             {

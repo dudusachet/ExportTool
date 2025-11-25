@@ -122,5 +122,6 @@ namespace PLSQLExportTool.Data
             newConn.Open();
             return newConn;
         }
+
     }
 }

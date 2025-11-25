@@ -148,7 +148,7 @@ FROM USER_TABLES t
         /// </summary>
         /// <param name="tableName">Nome da tabela</param>
         /// <returns>Lista de comandos INSERT</returns>
-        public List<string> GetTableDML(string tableName, string whereStat, string minMax, ref Int64 minId, ref Int64 maxId)
+        public List<string> GetTableDML(string tableName, string whereStat, string minMax, ref Int64 minId, ref Int64 maxId, ref Int64 minAutorizacao, ref Int64 maxAutorizacao)
         {
             List<string> dmlStatements = new List<string>();
             
@@ -200,6 +200,10 @@ FROM USER_TABLES t
                                     minId = valor;
                                 if (valor > maxId)
                                     maxId = valor;
+                                if (valor < minAutorizacao)
+                                    minAutorizacao = valor;
+                                if (valor > maxAutorizacao)
+                                    maxAutorizacao = valor;
                             }
 
 
