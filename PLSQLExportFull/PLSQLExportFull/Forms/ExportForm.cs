@@ -40,6 +40,9 @@ namespace PLSQLExportFull.Forms
             _metadataRepository = new MetadataRepository(_queryExecutor);
             _exportManager = new ExportManager(_queryExecutor, _metadataRepository);
 
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.tabControl.Selecting += new TabControlCancelEventHandler(this.tabControl_Selecting);
+
             // Inicialização da UI
             UpdateConnectionStatus();
             UpdateConnectionString();
@@ -73,7 +76,9 @@ namespace PLSQLExportFull.Forms
 
         private void UpdateConnectionStatus()
         {
-            if (_connectionManager.IsConnected)
+            bool conectado = _connectionManager.IsConnected;
+
+            if (conectado)
             {
                 lblConnectionStatus.Text = "Status: Conectado";
                 lblConnectionStatus.ForeColor = Color.Green;
@@ -82,7 +87,9 @@ namespace PLSQLExportFull.Forms
             {
                 lblConnectionStatus.Text = "Status: Desconectado";
                 lblConnectionStatus.ForeColor = Color.Red;
-                if (tabControl.SelectedTab != tabConnection)
+
+                // Se cair a conexão enquanto estiver na aba de exportação, volta para a primeira
+                if (tabControl.SelectedTab == tabExport)
                 {
                     tabControl.SelectedTab = tabConnection;
                 }
@@ -104,6 +111,24 @@ namespace PLSQLExportFull.Forms
             {
                 string textoCopiado = Clipboard.GetText();
                 ImportarStringConexao(textoCopiado);
+            }
+        }
+
+        private void tabControl_Selecting(object sender, TabControlCancelEventArgs e)
+        {
+            // Se a aba que o usuário está TENTANDO abrir for a de Exportação...
+            if (e.TabPage == tabExport)
+            {
+                // ... e NÃO estiver conectado
+                if (!_connectionManager.IsConnected)
+                {
+                    // Cancela a troca de aba (o clique é ignorado)
+                    e.Cancel = true;
+
+                    // Opcional: Exibe um aviso sonoro ou mensagem
+                    // System.Media.SystemSounds.Beep.Play(); 
+                    MessageBox.Show("Conecte-se ao banco de dados para acessar esta aba.", "Acesso Negado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
             }
         }
 
@@ -160,13 +185,33 @@ namespace PLSQLExportFull.Forms
             try
             {
                 toolStripStatusLabel.Text = "Conectando...";
+
+                // 1. LÓGICA DE SOBREPOSIÇÃO: Se já estiver conectado, desconecta primeiro
+                if (_connectionManager.IsConnected)
+                {
+                    // Desconecta do banco anterior
+                    _connectionManager.Disconnect();
+
+                    // LIMPEZA DE DADOS: Importante para não exibir tabelas do banco antigo
+                    checkedListExportTables.Items.Clear();
+                    if (_allTables != null) _allTables.Clear();
+
+                    // Opcional: reseta o combo de grupos
+                    if (cmbTableGroups.Items.Count > 0) cmbTableGroups.SelectedIndex = 0;
+                }
+
+                // 2. Conecta no novo banco (com os dados atuais dos TextBoxes)
                 _connectionManager.Connect();
+
+                // 3. Atualiza a UI
                 UpdateConnectionStatus();
                 MessageBox.Show("Conectado com sucesso!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 toolStripStatusLabel.Text = "Conectado";
             }
             catch (Exception ex)
             {
+                // Se der erro ao conectar no novo, garante que o status fique como desconectado
+                UpdateConnectionStatus();
                 MessageBox.Show($"Falha ao conectar: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 toolStripStatusLabel.Text = "Falha ao conectar";
             }
@@ -320,7 +365,7 @@ namespace PLSQLExportFull.Forms
                 {
                     cmbTableGroups.Items.Add(group.GroupName);
                 }
-                cmbTableGroups.SelectedIndex = 0;
+                cmbTableGroups.SelectedIndex = -1;
             }
             catch (Exception ex)
             {
@@ -337,7 +382,15 @@ namespace PLSQLExportFull.Forms
             if (!_connectionManager.IsConnected)
             {
                 // Se quiser, pode remover o MessageBox para não ficar irritante
-                // MessageBox.Show("Por favor, conecte-se ao banco de dados primeiro.", "Aviso", ...);
+               // MessageBox.Show("Por favor, conecte-se ao banco de dados primeiro.", "Aviso");
+                return;
+            }
+
+            if (cmbTableGroups.SelectedIndex == -1)
+            {
+                checkedListExportTables.Items.Clear();
+                if (_allTables != null) _allTables.Clear();
+                toolStripStatusLabel.Text = "Selecione um grupo para carregar as tabelas.";
                 return;
             }
 

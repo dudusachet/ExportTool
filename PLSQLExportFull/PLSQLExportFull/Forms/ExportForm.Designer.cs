@@ -28,6 +28,8 @@ namespace PLSQLExportFull.Forms
         /// </summary>
         private void InitializeComponent()
         {
+            this.Icon = Properties.Resources.Logo;
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(ExportForm));
             this.tabControl = new System.Windows.Forms.TabControl();
             this.tabConnection = new System.Windows.Forms.TabPage();
             this.btnLoadConfig = new System.Windows.Forms.Button();
@@ -467,7 +469,6 @@ namespace PLSQLExportFull.Forms
             this.ClientSize = new System.Drawing.Size(600, 491);
             this.Controls.Add(this.tabControl);
             this.Controls.Add(this.statusStrip);
-            this.Icon = global::PLSQLExportFull.Properties.Resources.icon;
             this.Margin = new System.Windows.Forms.Padding(2);
             this.Name = "ExportForm";
             this.Text = "SQL Export Full";

@@ -48,4 +48,5 @@ namespace PLSQLExportFull.Models
             return $"{TriggerName} ({TableName}) - {Status}";
         }
     }
+        //Eduardo Sachet 20/11/2025
 }
