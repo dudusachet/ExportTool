@@ -1,0 +1,488 @@
+[
+  {
+    "GroupName": "Layout CD",
+    "Tables": [
+      {
+        "TableName": "WMS_ALMOXARIFADO"
+      },
+      {
+        "TableName": "WMS_AREAS_MOVIMENTACOES"
+      },
+      {
+        "TableName": "WMS_ENDERECOS"
+      },
+      {
+        "TableName": "WMS_INDICES_DIST_RUAS"
+      },
+      {
+        "TableName": "WMS_LA"
+      },
+      {
+        "TableName": "WMS_PREDIOS"
+      },
+      {
+        "TableName": "WMS_REGIOES_ARMAZENAGENS"
+      },
+      {
+        "TableName": "WMS_REGIOES_SEPARACOES"
+      },
+      {
+        "TableName": "WMS_RUAS_ARMAZENAGENS"
+      },
+      {
+        "TableName": "WMS_SUB_LA"
+      },
+      {
+        "TableName": "WMS_TP_LA"
+      },
+      {
+        "TableName": "WMS_TP_SUB_LA"
+      }
+    ]
+  },
+  {
+    "GroupName": "Estoque Com Dados Logisticos",
+    "Tables": [
+      {
+        "TableName": "WMS_CONSUMO_MEDIO"
+      },
+      {
+        "TableName": "WMS_ESTOQUES_CD"
+      },
+      {
+        "TableName": "ITEM",
+        "Where": "WHERE CODIGO IN (SELECT ITEM_COD_ITEM_LOG FROM WMS_ESTOQUES_CD)"
+      },
+      {
+        "TableName": "WMS_ITENS_LOGISTICAS",
+        "Where": "WHERE ITEM_COD_ITEM IN (SELECT ITEM_COD_ITEM_LOG FROM WMS_ESTOQUES_CD)"
+      },
+      {
+        "TableName": "WMS_ETIQUETAS_ITENS",
+        "Where": "WHERE ITEM_COD_ITEM IN (SELECT ITEM_COD_ITEM_LOG FROM WMS_ESTOQUES_CD)"
+      },
+      {
+        "TableName": "WMS_ETIQUETAS",
+        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7 AND ITEM_COD_ITEM IN (SELECT ITEM_COD_ITEM_LOG FROM WMS_ESTOQUES_CD)"
+      }
+    ]
+  },
+  {
+    "GroupName": "Estoque Sem Dados Logisticos",
+    "Tables": [
+      {
+        "TableName": "WMS_CONSUMO_MEDIO"
+      },
+      {
+        "TableName": "WMS_ESTOQUES_CD"
+      }
+    ]
+  },
+  {
+    "GroupName": "Cargas Com Dados Logisticos",
+    "Tables": [
+      {
+        "TableName": "WMS_CARGAS",
+        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7",
+        "MinMax": "ID"
+      },
+      {
+        "TableName": "PEDIDOS_ERP",
+        "Where": "WHERE CARGA_ID BETWEEN :MIN_ID AND :MAX_ID"
+      },
+      {
+        "TableName": "LINHAS_PEDIDOS_ERP",
+        "Where": "WHERE PEDIDO_ID IN (SELECT PEDIDOS_ERP.ID FROM PEDIDOS_ERP WHERE CARGA_ID BETWEEN :MIN_ID AND :MAX_ID)"
+      },
+      {
+        "TableName": "WMS_LINHAS_CARGAS",
+        "Where": "WHERE CARGA_ID BETWEEN :MIN_ID AND :MAX_ID"
+      },
+      {
+        "TableName": "ITEM",
+        "Where": "WHERE CODIGO IN (SELECT ITEM FROM LINHAS_PEDIDOS_ERP WHERE PEDIDO_ID IN (SELECT PEDIDOS_ERP.ID FROM PEDIDOS_ERP WHERE CARGA_ID BETWEEN :MIN_ID AND :MAX_ID))"
+      },
+      {
+        "TableName": "WMS_ITENS_LOGISTICAS",
+        "Where": "WHERE ITEM_COD_ITEM IN (SELECT ITEM FROM LINHAS_PEDIDOS_ERP WHERE PEDIDO_ID IN (SELECT PEDIDOS_ERP.ID FROM PEDIDOS_ERP WHERE CARGA_ID BETWEEN :MIN_ID AND :MAX_ID))"
+      },
+      {
+        "TableName": "WMS_ETIQUETAS_ITENS",
+        "Where": "WHERE ITEM_COD_ITEM IN (SELECT ITEM FROM LINHAS_PEDIDOS_ERP WHERE PEDIDO_ID IN (SELECT PEDIDOS_ERP.ID FROM PEDIDOS_ERP WHERE CARGA_ID BETWEEN :MIN_ID AND :MAX_ID))"
+      },
+      {
+        "TableName": "WMS_ETIQUETAS",
+        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7 AND ITEM_COD_ITEM IN (SELECT ITEM FROM LINHAS_PEDIDOS_ERP WHERE PEDIDO_ID IN (SELECT PEDIDOS_ERP.ID FROM PEDIDOS_ERP WHERE CARGA_ID BETWEEN :MIN_ID AND :MAX_ID))"
+      }
+    ]
+  },
+  {
+    "GroupName": "Cargas Sem Dados Logisticos",
+    "Tables": [
+      {
+        "TableName": "WMS_CARGAS",
+        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7",
+        "MinMax": "ID"
+      },
+      {
+        "TableName": "PEDIDOS_ERP",
+        "Where": "WHERE CARGA_ID BETWEEN :MIN_ID AND :MAX_ID"
+      },
+      {
+        "TableName": "LINHAS_PEDIDOS_ERP",
+        "Where": "WHERE PEDIDO_ID IN (SELECT PEDIDOS_ERP.ID FROM PEDIDOS_ERP WHERE CARGA_ID BETWEEN :MIN_ID AND :MAX_ID)"
+      },
+      {
+        "TableName": "WMS_LINHAS_CARGAS",
+        "Where": "WHERE CARGA_ID BETWEEN :MIN_ID AND :MAX_ID"
+      }
+    ]
+  },
+  {
+    "GroupName": "Pedidos Sem Dados Logisticos",
+    "Tables": [
+      {
+        "TableName": "PEDIDOS",
+        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7",
+        "MinMax": "ID"
+      },
+      {
+        "TableName": "LINHAS_PEDIDOS",
+        "Where": "WHERE PEDIDO_ID BETWEEN :MIN_ID AND :MAX_ID"
+      },
+      {
+        "TableName": "WMS_LINHAS_ENTREGAS",
+        "Where": "WHERE PEDIDO_ID BETWEEN :MIN_ID AND :MAX_ID"
+      },
+      {
+        "TableName": "WMS_ONDAS",
+        "Where": "WHERE PEDIDO_ID BETWEEN :MIN_ID AND :MAX_ID"
+      },
+      {
+        "TableName": "WMS_TAREFAS_CD",
+        "Where": "WHERE PEDIDO_ID BETWEEN :MIN_ID AND :MAX_ID"
+      },
+      {
+        "TableName": "WMS_SUB_TAREFAS_CD",
+        "Where": "WHERE TARCD_COD_TAREFA_CD IN (SELECT COD_TAREFA_CD FROM WMS_TAREFAS_CD WHERE PEDIDO_ID BETWEEN :MIN_ID AND :MAX_ID)"
+      }
+    ]
+  },
+  {
+    "GroupName": "Cadastros",
+    "Tables": [
+      {
+        "TableName": "GER_BALANCAS"
+      },
+      {
+        "TableName": "GER_CIDADES"
+      },
+      {
+        "TableName": "GER_EMPRESAS"
+      },
+      {
+        "TableName": "GER_IMPRESSORAS"
+      },
+      {
+        "TableName": "GER_MENUS"
+      },
+      {
+        "TableName": "GER_MENUS_FAVORITOS"
+      },
+      {
+        "TableName": "GER_MODULO"
+      },
+      {
+        "TableName": "GER_MODULO_100"
+      },
+      {
+        "TableName": "GER_MODULO_CAMPO_PARAM"
+      },
+      {
+        "TableName": "GER_MODULO_CAMPO_RESTRICAO"
+      },
+      {
+        "TableName": "GER_MODULO_CAMPOS"
+      },
+      {
+        "TableName": "GER_MODULO_CAMPOS_PERM"
+      },
+      {
+        "TableName": "GER_MODULO_COLUNAS"
+      },
+      {
+        "TableName": "GER_MODULO_FAVORITOS"
+      },
+      {
+        "TableName": "GER_MODULO_FILTROS"
+      },
+      {
+        "TableName": "GER_MODULO_PERMISSAO"
+      },
+      {
+        "TableName": "GER_MODULO_PERMISSAO_100"
+      },
+      {
+        "TableName": "GER_MODULO_TIPO_PERMISSAO"
+      },
+      {
+        "TableName": "GER_PAISES"
+      },
+      {
+        "TableName": "GER_PARAMETROS"
+      },
+      {
+        "TableName": "GER_SEQUENCES"
+      },
+      {
+        "TableName": "GER_SINC_OWNER_EMPRESAS"
+      },
+      {
+        "TableName": "GER_SISTEMAS"
+      },
+      {
+        "TableName": "GER_TEMPLATE_ETIQUETAS"
+      },
+      {
+        "TableName": "GER_TIPO_AVISOS"
+      },
+      {
+        "TableName": "GER_TIPOIMPRESSORAS"
+      },
+      {
+        "TableName": "GER_UFS"
+      },
+      {
+        "TableName": "GER_USU_EMP"
+      },
+      {
+        "TableName": "GER_USU_GRU_EMP"
+      },
+      {
+        "TableName": "GER_USU_GRU_MENU"
+      },
+      {
+        "TableName": "GER_USU_GRUPOS"
+      },
+      {
+        "TableName": "GER_USU_MENU"
+      },
+      {
+        "TableName": "GER_USUARIOS"
+      },
+      {
+        "TableName": "GER_USUARIOS_AVISOS"
+      },
+      {
+        "TableName": "GER_VERSOES"
+      },
+      {
+        "TableName": "ITEM_UNID_MED"
+      },
+      {
+        "TableName": "ROTA"
+      },
+      {
+        "TableName": "WMS_ALMOX_PARAM_CLASSIFICACAO"
+      },
+      {
+        "TableName": "WMS_ALMOX_PERMISSAO_TRANSF"
+      },
+      {
+        "TableName": "WMS_ALMOX_TP_MOV_ESTOQUE"
+      },
+      {
+        "TableName": "WMS_ALMOXARIFADO"
+      },
+      {
+        "TableName": "WMS_AREAS_COLABORADORES"
+      },
+      {
+        "TableName": "WMS_CARGOS"
+      },
+      {
+        "TableName": "WMS_CENTDIST_USUARIOS"
+      },
+      {
+        "TableName": "WMS_CENTROS_DISTRIBUICOES"
+      },
+      {
+        "TableName": "WMS_CHECKOUT"
+      },
+      {
+        "TableName": "WMS_CLIENTES"
+      },
+      {
+        "TableName": "WMS_COLABORADORES"
+      },
+      {
+        "TableName": "WMS_ETIQ_CONFIG"
+      },
+      {
+        "TableName": "WMS_FAIXA_PERC_MIN_RECEB"
+      },
+      {
+        "TableName": "WMS_MOTORISTAS"
+      },
+      {
+        "TableName": "WMS_PARAMETROS"
+      },
+      {
+        "TableName": "WMS_PONTOS_FUNCAO"
+      },
+      {
+        "TableName": "WMS_QUERYRELATORIOS"
+      },
+      {
+        "TableName": "WMS_QUERYRELATORIOS_PARAMETROS"
+      },
+      {
+        "TableName": "WMS_REGIOES_COLABORADORES"
+      },
+      {
+        "TableName": "WMS_ROTAS"
+      },
+      {
+        "TableName": "WMS_ROTAS_CLIENTES"
+      },
+      {
+        "TableName": "WMS_SITUACAO_WMS"
+      },
+      {
+        "TableName": "WMS_TABELAS"
+      },
+      {
+        "TableName": "WMS_TAREFAS"
+      },
+      {
+        "TableName": "WMS_TAREFAS_COLABORADORES"
+      },
+      {
+        "TableName": "WMS_TIPOS_ESTRUTURA"
+      },
+      {
+        "TableName": "WMS_TIPOS_ETIQ"
+      },
+      {
+        "TableName": "WMS_TIPOS_PEDIDOS"
+      },
+      {
+        "TableName": "WMS_TP_ESTOQUES"
+      },
+      {
+        "TableName": "WMS_TP_LA"
+      },
+      {
+        "TableName": "WMS_TP_MOV_ESTOQUE"
+      },
+      {
+        "TableName": "WMS_TP_PALETES"
+      },
+      {
+        "TableName": "WMS_TP_VEICULOS"
+      },
+      {
+        "TableName": "WMS_TRANSPORTADORAS"
+      },
+      {
+        "TableName": "WMS_TURNOS"
+      }
+    ]
+  },
+  {
+    "GroupName": "Recebimento Sem Dados Logisticos",
+    "Tables": [
+      {
+        "TableName": "WMS_AUTORIZACOES",
+        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7",
+        "MinMax": "AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_AUTORIZACOES_DOCUMENTOS",
+        "Where": "WHERE AUTORIZACAO BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_AUTORIZACOES_RECEBIMENTOS",
+        "Where": "WHERE AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_AUTORIZACOES_RESERVA",
+        "Where": "WHERE AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_AUTORIZACOES_DIVERGENCIAS",
+        "Where": "WHERE AUTORIZACAO BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_LINHAS_AUTORIZADAS",
+        "Where": "WHERE AUTREC_AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_RECEBIMENTOS",
+        "Where": "WHERE WMS_RECEBIMENTO_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_RECEBIMENTOS_LOTES",
+        "Where": "WHERE AUTORIZACAO BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_TAREFAS_CD",
+        "Where": "WHERE AUTREC_AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO"
+      },
+      {
+        "TableName": "WMS_SUB_TAREFAS_CD",
+        "Where": "WHERE TARCD_COD_TAREFA_CD IN (SELECT COD_TAREFA_CD FROM WMS_TAREFAS_CD WHERE AUTREC_AUTREC_ID BETWEEN :MIN_AUTORIZACAO AND :MAX_AUTORIZACAO)"
+      }
+    ]
+  },
+  {
+    "GroupName": "Itens e Dados Logisticos",
+    "Tables": [
+      {
+        "TableName": "ITEM"
+      },
+      {
+        "TableName": "ITEM_CROSS_DOCKING"
+      },
+      {
+        "TableName": "ITEM_FORNECEDOR"
+      },
+      {
+        "TableName": "ITEM_UNID_MED"
+      },
+      {
+        "TableName": "WMS_ITENS_LOGISTICAS"
+      },
+      {
+        "TableName": "WMS_COMPOSICAO_ITEM"
+      },
+      {
+        "TableName": "WMS_ETIQUETAS_ITENS"
+      },
+      {
+        "TableName": "WMS_ETIQUETAS"
+      },
+      {
+        "TableName": "WMS_EMBALAGENS"
+      }
+    ]
+  },
+  {
+    "GroupName": "Outras Tarefas",
+    "Tables": [
+      {
+        "TableName": "WMS_TAREFAS_CD",
+        "Where": "WHERE AUTREC_AUTREC_ID IS NULL AND PEDIDO_ID IS NULL AND DTHR >= TRUNC(SYSDATE)-7",
+        "MinMax": "COD_TAREFA_CD"
+      },
+      {
+        "TableName": "WMS_SUB_TAREFAS_CD",
+        "Where": "WHERE TARCD_COD_TAREFA_CD BETWEEN :MIN_ID AND :MAX_ID AND TARCD_COD_TAREFA_CD IN (SELECT COD_TAREFA_CD FROM WMS_TAREFAS_CD WHERE AUTREC_AUTREC_ID IS NULL AND PEDIDO_ID IS NULL AND DTHR >= TRUNC(SYSDATE) - 7)"
+      },
+      {
+        "TableName": "WMS_TAREFAS_GERAL",
+        "Where": "WHERE DTHR >= TRUNC(SYSDATE)-7"
+      }
+    ]
+  }
+]
