@@ -74,11 +74,13 @@ namespace PLSQLExportFull.Forms
             _connectionManager.ConnectionString = connectionString;
         }
 
+
+
         private void UpdateConnectionStatus()
         {
-            bool conectado = _connectionManager.IsConnected;
+            bool isConnected = _connectionManager.IsConnected;
 
-            if (conectado)
+            if (isConnected)
             {
                 lblConnectionStatus.Text = "Status: Conectado";
                 lblConnectionStatus.ForeColor = Color.Green;
@@ -88,17 +90,30 @@ namespace PLSQLExportFull.Forms
                 lblConnectionStatus.Text = "Status: Desconectado";
                 lblConnectionStatus.ForeColor = Color.Red;
 
-                // Se cair a conexão enquanto estiver na aba de exportação, volta para a primeira
                 if (tabControl.SelectedTab == tabExport)
                 {
                     tabControl.SelectedTab = tabConnection;
                 }
             }
+            bool enableInputs = !isConnected;
+
+            // Caixas de Texto
+            txtHost.Enabled = enableInputs;
+            txtPort.Enabled = enableInputs;
+            txtServiceName.Enabled = enableInputs;
+            txtUserId.Enabled = enableInputs;
+            txtPassword.Enabled = enableInputs;
+            txtConnectionString.Enabled = enableInputs;
+
+            // Botões de Configuração
+            btnConnect.Enabled = enableInputs;       
+            btnPasteString.Enabled = enableInputs;   
+            btnLoadConfig.Enabled = enableInputs;    
+            btnDisconnect.Enabled = isConnected;
         }
 
         private void txtConnectionField_TextChanged(object sender, EventArgs e)
         {
-            // ADICIONE ESTA LINHA NO INÍCIO DO MÉTODO
             if (_isParsingConnectionString) return;
 
             UpdateConnectionString();
@@ -541,89 +556,101 @@ namespace PLSQLExportFull.Forms
         {
             public List<TableExportData> Tables { get; set; }
             public string FilePath { get; set; }
+            public string GroupName { get; set; } 
+            public bool Truncate { get; set; }
+            public string Servidor { get; set; }
         }
+
+
         private void btnExport_Click(object sender, EventArgs e)
         {
-            // --- Validações (Iguais ao seu código anterior) ---
             if (!_connectionManager.IsConnected)
             {
-                MessageBox.Show("Por favor, conecte-se ao banco de dados primeiro.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Conecte-se primeiro.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             var selectedTables = checkedListExportTables.CheckedItems.Cast<TableInfo>().ToList();
-
             if (selectedTables.Count == 0)
             {
-                MessageBox.Show("Selecione pelo menos uma tabela para exportar.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Selecione tabelas.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            SaveFileDialog saveFileDialog = new SaveFileDialog();
-            saveFileDialog.Filter = "SQL Script (*.sql;*.pdc)|*.sql;*.pdc";
-            saveFileDialog.Title = "Salvar Script DML de Exportação";
-            string dataFormatada = DateTime.Now.ToString("yyyyMMdd_HHmm");
-            saveFileDialog.FileName = $"{cmbTableGroups.Text.Replace(" ", "_")}_{dataFormatada}.sql.pdc";
-
-            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            SaveFileDialog sfd = new SaveFileDialog
             {
-                // 1. Prepara os dados AQUI (Na Thread principal)
-                // Isso é necessário porque o BackgroundWorker não pode ler txtWhereClause.Text diretamente
-                string manualWhere = txtWhereClause.Text.Trim();
-                bool isGroupSelected = cmbTableGroups.SelectedIndex > 0;
+                Filter = "SQL (*.sql;*.pdc)|*.sql;*.pdc",
+                FileName = $"{txtUserId.Text}_{cmbTableGroups.Text.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmm}.sql.pdc"
+            };
 
-                var tablesToExport = selectedTables.Select(t =>
+            if (sfd.ShowDialog() == DialogResult.OK)
+            {
+                string manualWhere = txtWhereClause.Text.Trim();
+                bool isGroup = cmbTableGroups.SelectedIndex > 0;
+
+                var data = selectedTables.Select(t => new TableExportData
                 {
-                    string finalWhere = t.Where;
-                    if (!isGroupSelected && !string.IsNullOrEmpty(manualWhere))
-                    {
-                        finalWhere = manualWhere.TrimEnd(';');
-                    }
-                    return new TableExportData
-                    {
-                        TableName = t.TableName,
-                        WhereClause = finalWhere,
-                        MinMax = t.MinMax
-                    };
+                    TableName = t.TableName,
+                    WhereClause = (!isGroup && !string.IsNullOrEmpty(manualWhere)) ? manualWhere.TrimEnd(';') : t.Where,
+                    MinMax = t.MinMax
                 }).ToList();
 
-                // 2. Configura os argumentos
+
                 ExportArguments args = new ExportArguments
                 {
-                    Tables = tablesToExport,
-                    FilePath = saveFileDialog.FileName
+                    Tables = data,
+                    FilePath = sfd.FileName,
+                    GroupName = cmbTableGroups.Text,
+                    Servidor = $"{txtUserId.Text}/ @{txtHost.Text}:{txtPort.Text}/{txtServiceName.Text}",
+                    Truncate = chkTruncate.Checked
                 };
 
-                // 3. Configura o BackgroundWorker
                 BackgroundWorker worker = new BackgroundWorker();
-                worker.DoWork += Worker_DoWork; // Onde o trabalho pesado acontece
-                worker.RunWorkerCompleted += Worker_RunWorkerCompleted; // Onde termina
+                worker.DoWork += Worker_DoWork;
+                worker.RunWorkerCompleted += Worker_RunWorkerCompleted;
 
-                // 4. Trava a UI visualmente
-                this.Cursor = Cursors.WaitCursor; // Usa this.Cursor que é mais forte que Cursor.Current
+                this.Cursor = Cursors.WaitCursor;
                 toolStripStatusLabel.Text = "Exportando DML... (Aguarde)";
-                btnExport.Enabled = false; // Opcional: Evita duplo clique
+                btnExport.Enabled = false;
 
-                // 5. Inicia o processo
                 worker.RunWorkerAsync(args);
             }
         }
 
-        // Este método roda em outra Thread. NÃO MEXA EM CONTROLES DE TELA AQUI (MessageBox, TextBox, etc)
+
         private void Worker_DoWork(object sender, DoWorkEventArgs e)
         {
-            // Recupera os argumentos passados
             ExportArguments args = (ExportArguments)e.Argument;
 
-            // Chama seu ExportManager (Processo Pesado)
-            // Se der erro aqui, o BackgroundWorker captura e passa para o Completed
-            _exportManager.ExportTablesDML(args.Tables, args.FilePath);
 
-            // Passamos o caminho do arquivo como resultado para usar na mensagem de sucesso
+            _exportManager.ExportTablesDML(
+                args.Tables,
+                args.FilePath,
+                args.GroupName,
+                args.Truncate,
+                args.Servidor
+            );
+
             e.Result = args.FilePath;
+
+            #region zipa arquivo
+            var targetName = args.FilePath + ".7z";
+
+            var p = new System.Diagnostics.ProcessStartInfo();
+            p.FileName = Path.Combine(Application.StartupPath, "7za.exe");
+            p.Arguments = "a -t7z -m0=lzma2 -mx=9 \"" + targetName + "\"";
+
+            p.Arguments += " \"" + args.FilePath + "\"";
+
+            //p.Arguments += " -sdel";
+
+            p.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+            var x = System.Diagnostics.Process.Start(p);
+            x.WaitForExit();
+            #endregion
+
         }
 
-        // Este método roda quando termina (Sucesso ou Erro) - Volta para a Thread da Tela
         private void Worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
             // 1. Restaura o Cursor e a UI

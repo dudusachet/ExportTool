@@ -28,15 +28,13 @@ namespace PLSQLExportFull.Forms
         /// </summary>
         private void InitializeComponent()
         {
-            this.Icon = Properties.Resources.Logo;
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(ExportForm));
+            this.chkTruncate = new System.Windows.Forms.CheckBox();
             this.tabControl = new System.Windows.Forms.TabControl();
             this.tabConnection = new System.Windows.Forms.TabPage();
             this.btnLoadConfig = new System.Windows.Forms.Button();
             this.btnPasteString = new System.Windows.Forms.Button();
             this.btnDisconnect = new System.Windows.Forms.Button();
             this.btnConnect = new System.Windows.Forms.Button();
-            this.btnTestConnection = new System.Windows.Forms.Button();
             this.lblConnectionStatus = new System.Windows.Forms.Label();
             this.txtPassword = new System.Windows.Forms.TextBox();
             this.label5 = new System.Windows.Forms.Label();
@@ -88,7 +86,6 @@ namespace PLSQLExportFull.Forms
             this.tabConnection.Controls.Add(this.btnPasteString);
             this.tabConnection.Controls.Add(this.btnDisconnect);
             this.tabConnection.Controls.Add(this.btnConnect);
-            this.tabConnection.Controls.Add(this.btnTestConnection);
             this.tabConnection.Controls.Add(this.lblConnectionStatus);
             this.tabConnection.Controls.Add(this.txtPassword);
             this.tabConnection.Controls.Add(this.label5);
@@ -135,10 +132,10 @@ namespace PLSQLExportFull.Forms
             // 
             // btnDisconnect
             // 
-            this.btnDisconnect.Location = new System.Drawing.Point(195, 256);
+            this.btnDisconnect.Location = new System.Drawing.Point(119, 256);
             this.btnDisconnect.Margin = new System.Windows.Forms.Padding(2);
             this.btnDisconnect.Name = "btnDisconnect";
-            this.btnDisconnect.Size = new System.Drawing.Size(82, 24);
+            this.btnDisconnect.Size = new System.Drawing.Size(96, 24);
             this.btnDisconnect.TabIndex = 15;
             this.btnDisconnect.Text = "Desconectar";
             this.btnDisconnect.UseVisualStyleBackColor = true;
@@ -146,25 +143,14 @@ namespace PLSQLExportFull.Forms
             // 
             // btnConnect
             // 
-            this.btnConnect.Location = new System.Drawing.Point(105, 256);
+            this.btnConnect.Location = new System.Drawing.Point(19, 256);
             this.btnConnect.Margin = new System.Windows.Forms.Padding(2);
             this.btnConnect.Name = "btnConnect";
-            this.btnConnect.Size = new System.Drawing.Size(82, 24);
+            this.btnConnect.Size = new System.Drawing.Size(96, 24);
             this.btnConnect.TabIndex = 14;
             this.btnConnect.Text = "Conectar";
             this.btnConnect.UseVisualStyleBackColor = true;
             this.btnConnect.Click += new System.EventHandler(this.btnConnect_Click);
-            // 
-            // btnTestConnection
-            // 
-            this.btnTestConnection.Location = new System.Drawing.Point(15, 256);
-            this.btnTestConnection.Margin = new System.Windows.Forms.Padding(2);
-            this.btnTestConnection.Name = "btnTestConnection";
-            this.btnTestConnection.Size = new System.Drawing.Size(82, 24);
-            this.btnTestConnection.TabIndex = 13;
-            this.btnTestConnection.Text = "Testar Conexão";
-            this.btnTestConnection.UseVisualStyleBackColor = true;
-            this.btnTestConnection.Click += new System.EventHandler(this.btnTestConnection_Click);
             // 
             // lblConnectionStatus
             // 
@@ -298,6 +284,7 @@ namespace PLSQLExportFull.Forms
             // 
             // tabExport
             // 
+            this.tabExport.Controls.Add(this.chkTruncate);
             this.tabExport.Controls.Add(this.btnSortByRowsExport);
             this.tabExport.Controls.Add(this.btnSortByNameExport);
             this.tabExport.Controls.Add(this.cmbTableGroups);
@@ -317,6 +304,17 @@ namespace PLSQLExportFull.Forms
             this.tabExport.TabIndex = 4;
             this.tabExport.Text = "Exportação DML";
             this.tabExport.UseVisualStyleBackColor = true;
+            // 
+            // chkTruncate
+            // 
+            this.chkTruncate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.chkTruncate.AutoSize = true;
+            this.chkTruncate.Location = new System.Drawing.Point(320, 373); // Ajuste a posição X para ficar à esquerda do botão Exportar
+            this.chkTruncate.Name = "chkTruncate";
+            this.chkTruncate.Size = new System.Drawing.Size(120, 17);
+            this.chkTruncate.TabIndex = 12; // Ajuste o TabIndex conforme necessário
+            this.chkTruncate.Text = "Truncar tabelas (Limpar)";
+            this.chkTruncate.UseVisualStyleBackColor = true;
             // 
             // btnSortByRowsExport
             // 
@@ -469,6 +467,7 @@ namespace PLSQLExportFull.Forms
             this.ClientSize = new System.Drawing.Size(600, 491);
             this.Controls.Add(this.tabControl);
             this.Controls.Add(this.statusStrip);
+            this.Icon = global::PLSQLExportFull.Properties.Resources.Logo;
             this.Margin = new System.Windows.Forms.Padding(2);
             this.Name = "ExportForm";
             this.Text = "SQL Export Full";
@@ -495,7 +494,6 @@ namespace PLSQLExportFull.Forms
         private System.Windows.Forms.Label lblConnectionString;
         private System.Windows.Forms.TextBox txtPassword;
         private System.Windows.Forms.Label label5;
-        private System.Windows.Forms.TextBox txtUserId;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.TextBox txtServiceName;
         private System.Windows.Forms.Label label3;
@@ -506,7 +504,6 @@ namespace PLSQLExportFull.Forms
         private System.Windows.Forms.Label lblConnectionStatus;
         private System.Windows.Forms.Button btnDisconnect;
         private System.Windows.Forms.Button btnConnect;
-        private System.Windows.Forms.Button btnTestConnection;
         private System.Windows.Forms.CheckedListBox checkedListExportTables;
         private System.Windows.Forms.Label lblExportTables;
         //private System.Windows.Forms.Button btnRefreshExportTables;
@@ -521,5 +518,7 @@ namespace PLSQLExportFull.Forms
         private System.Windows.Forms.Button btnSortByNameExport;
         private System.Windows.Forms.Button btnPasteString;
         private System.Windows.Forms.Button btnLoadConfig;
+        public System.Windows.Forms.TextBox txtUserId;
+        private System.Windows.Forms.CheckBox chkTruncate;
     }
 }

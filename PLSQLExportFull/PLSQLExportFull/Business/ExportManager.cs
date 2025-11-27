@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using PLSQLExportFull.Data;
 using PLSQLExportFull.Models;
@@ -19,23 +18,20 @@ namespace PLSQLExportFull.Business
     {
         private OracleQueryExecutor _queryExecutor;
         private MetadataRepository _metadataRepository;
+
+        // Controle de IDs para cláusulas WHERE dinâmicas
         private Int64 minId = Int64.MaxValue;
         private Int64 maxId = 0;
         private Int64 minAutorizacao = Int64.MaxValue;
         private Int64 maxAutorizacao = 0;
 
-
-
         public ExportManager(OracleQueryExecutor queryExecutor, MetadataRepository metadataRepository)
         {
-            if (queryExecutor == null) throw new ArgumentNullException("queryExecutor");
-            if (metadataRepository == null) throw new ArgumentNullException("metadataRepository");
-
-            _queryExecutor = queryExecutor;
-            _metadataRepository = metadataRepository;
+            _queryExecutor = queryExecutor ?? throw new ArgumentNullException(nameof(queryExecutor));
+            _metadataRepository = metadataRepository ?? throw new ArgumentNullException(nameof(metadataRepository));
         }
 
-        public void ExportTablesDML(List<TableExportData> tablesToExport, string outputFilePath)
+        public void ExportTablesDML(List<TableExportData> tablesToExport, string outputFilePath, string groupname, bool truncate, string servidor)
         {
             if (tablesToExport == null || tablesToExport.Count == 0)
                 throw new ArgumentException("Nenhuma tabela selecionada para exportação.");
@@ -48,7 +44,7 @@ namespace PLSQLExportFull.Business
             // ---------------------------------------------------------
             // 1. Cabeçalho e Configurações Globais
             // ---------------------------------------------------------
-            dmlScript.AppendLine("--Configurações de Ambiente");
+            dmlScript.AppendLine("-- Configurações de Ambiente");
             dmlScript.AppendLine("SET ECHO OFF");
             dmlScript.AppendLine("SET FEEDBACK OFF");
             dmlScript.AppendLine("SET VERIFY OFF");
@@ -58,14 +54,16 @@ namespace PLSQLExportFull.Business
             dmlScript.AppendLine("SET TIMING OFF");
             dmlScript.AppendLine();
 
-            dmlScript.AppendLine("-- Script de Exportação DML (INSERT)");
+            dmlScript.AppendLine($"-- Origem: {servidor}");
+            dmlScript.AppendLine($"-- Script: {groupname}");
             dmlScript.AppendLine($"-- Gerado em: {DateTime.Now:dd/MM/yyyy HH:mm:ss}");
             dmlScript.AppendLine($"-- Tabelas: {tablesToExport.Count}");
             dmlScript.AppendLine();
 
             // Log de Início Geral
             dmlScript.AppendLine("SET TERMOUT ON");
-            dmlScript.AppendLine("SELECT 'Inicio do processo geral: ' || TO_CHAR(SYSDATE, 'DD/MM/YYYY HH24:MI:SS') FROM DUAL;");
+            // Mostra o nome do banco na tela do SQL Plus também
+            dmlScript.AppendLine($"SELECT 'Inicio: ' || TO_CHAR(SYSDATE, 'DD/MM/YYYY HH24:MI:SS') FROM DUAL;");
             dmlScript.AppendLine("SET TERMOUT OFF");
             dmlScript.AppendLine();
 
@@ -78,15 +76,16 @@ namespace PLSQLExportFull.Business
                     {
                         if (novoWhere.Contains(":MIN"))
                         {
-                            novoWhere = novoWhere.Replace(":MIN_ID", minId.ToString());
-                            novoWhere = novoWhere.Replace(":MAX_ID", maxId.ToString());
-                            novoWhere = novoWhere.Replace(":MIN_AUTORIZACAO", minAutorizacao.ToString());
-                            novoWhere = novoWhere.Replace(":MAX_AUTORIZACAO", maxAutorizacao.ToString());
+                            novoWhere = novoWhere.Replace(":MIN_ID", minId.ToString())
+                                             .Replace(":MAX_ID", maxId.ToString())
+                                             .Replace(":MIN_AUTORIZACAO", minAutorizacao.ToString())
+                                             .Replace(":MAX_AUTORIZACAO", maxAutorizacao.ToString());
                         }
                     }
 
-                    // PASSO IMPORTANTE: Buscamos os dados ANTES de escrever o log no script
-                    // Isso permite saber a contagem (Count) para o prompt
+                    // ---------------------------------------------------------
+                    // 2. BUSCA DADOS
+                    // ---------------------------------------------------------
                     List<string> insertStatements = _metadataRepository.GetTableDML(
                         table.TableName,
                         novoWhere,
@@ -101,17 +100,19 @@ namespace PLSQLExportFull.Business
                     // 3. Escreve o Bloco de Log (Visível)
                     // ---------------------------------------------------------
                     dmlScript.AppendLine("SET TERMOUT ON");
-
                     dmlScript.AppendLine("prompt --------------------------------------------------------------------------------");
                     dmlScript.AppendLine();
-                    // Mostra hora e nome da tabela
-                    dmlScript.AppendLine($"SELECT 'Iniciando tabela {table.TableName}: ' || TO_CHAR(SYSDATE, 'DD/MM/YYYY HH24:MI:SS') FROM DUAL;");
+                    dmlScript.AppendLine($"SELECT 'Tabela {table.TableName}: ' || TO_CHAR(SYSDATE, 'HH24:MI:SS') FROM DUAL;");
 
-                    // Mostra a contagem exata (ex: "Processando: WMS_ALMOXARIFADO - 11 registros encontrados")
+                    // --- LÓGICA DO TRUNCATE ---
+                    if (truncate)
+                    {
+                        dmlScript.AppendLine($"prompt [!] Truncating {table.TableName}...");
+                        dmlScript.AppendLine($"TRUNCATE TABLE {table.TableName};");
+                    }
+                    // --------------------------
+
                     dmlScript.AppendLine($"prompt Processando: {table.TableName} - {insertStatements.Count} registros encontrados");
-                    dmlScript.AppendLine($"-- SELECT * FROM {table.TableName} {novoWhere};");
-
-                    // Agora desliga para os inserts não sujarem a tela
                     dmlScript.AppendLine("SET TERMOUT OFF");
 
                     // ---------------------------------------------------------
@@ -120,40 +121,36 @@ namespace PLSQLExportFull.Business
                     if (insertStatements.Count > 0)
                     {
                         var count = 0;
-                        dmlScript.AppendLine(); // Linha em branco estética no arquivo
+                        dmlScript.AppendLine();
 
                         foreach (string insert in insertStatements)
                         {
                             dmlScript.AppendLine(insert);
                             count++;
 
-                            // Commit a cada 100
                             if (count % 100 == 0)
                             {
                                 dmlScript.AppendLine("commit;");
                             }
                         }
-                        // Commit final da tabela
                         dmlScript.AppendLine("commit;");
                     }
                     else
                     {
-                        // Caso queria deixar registrado no arquivo que estava vazio, 
-                        // mesmo que não apareça na tela (já avisou 0 registros no prompt acima)
-                        dmlScript.AppendLine("-- Tabela vazia ou sem dados no filtro. ");
+                        dmlScript.AppendLine($"-- Tabela {table.TableName} vazia ou sem dados no filtro.");
                     }
 
                     dmlScript.AppendLine(); // Espaço entre tabelas
                 }
                 catch (Exception ex)
                 {
-                    // Erro: Força output ON para mostrar o erro
                     dmlScript.AppendLine("SET TERMOUT ON");
                     dmlScript.AppendLine($"prompt ERRO AO PROCESSAR TABELA {table.TableName}: {ex.Message}");
                     dmlScript.AppendLine("SET TERMOUT OFF");
                     dmlScript.AppendLine($"-- Detalhe: {ex.ToString()}");
                     dmlScript.AppendLine();
                 }
+
             }
 
             // ---------------------------------------------------------
@@ -168,9 +165,13 @@ namespace PLSQLExportFull.Business
 
             // Grava o arquivo
             File.WriteAllText(outputFilePath, dmlScript.ToString(), Encoding.UTF8);
+
+
+
+
+
         }
 
-        // ... GenerateEnableConstraintsScript permanece igual ...
         public void GenerateEnableConstraintsScript(List<ConstraintInfo> constraints, string outputFilePath)
         {
             if (constraints == null || constraints.Count == 0) return;
@@ -187,6 +188,8 @@ namespace PLSQLExportFull.Business
             }
 
             File.WriteAllText(outputFilePath, script.ToString(), Encoding.UTF8);
-        }
+
+
+         }
     }
 }

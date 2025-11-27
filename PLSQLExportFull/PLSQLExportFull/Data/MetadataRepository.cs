@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Data;
 using PLSQLExportFull.Models;
 using System.Globalization;
+using System.Text; // Required for StringBuilder
+
 namespace PLSQLExportFull.Data
 {
     /// <summary>
@@ -24,7 +26,6 @@ namespace PLSQLExportFull.Data
         /// <summary>
         /// Obtém lista de todas as triggers do usuário
         /// </summary>
-        /// <returns>Lista de TriggerInfo</returns>
         public List<TriggerInfo> GetAllTriggers()
         {
             string query = @"
@@ -53,7 +54,6 @@ namespace PLSQLExportFull.Data
         /// <summary>
         /// Obtém lista de todas as constraints do usuário
         /// </summary>
-        /// <returns>Lista de ConstraintInfo</returns>
         public List<ConstraintInfo> GetAllConstraints()
         {
             string query = @"
@@ -94,7 +94,6 @@ namespace PLSQLExportFull.Data
         /// <summary>
         /// Obtém lista de todas as tabelas do usuário
         /// </summary>
-        /// <returns>Lista de TableInfo</returns>
         public List<TableInfo> GetAllTables(string text = "", List<TableInfo> tablesGroup = null)
         {
             string query = $@"
@@ -127,8 +126,6 @@ FROM USER_TABLES t
         /// <summary>
         /// Obtém o DDL de uma tabela
         /// </summary>
-        /// <param name="tableName">Nome da tabela</param>
-        /// <returns>Script DDL</returns>
         public string GetTableDDL(string tableName)
         {
             try
@@ -144,14 +141,12 @@ FROM USER_TABLES t
         }
 
         /// <summary>
-        /// Obtém o DML (INSERT statements) de uma tabela
+        /// Obtém o DML (INSERT statements) de uma tabela com suporte a CLOB
         /// </summary>
-        /// <param name="tableName">Nome da tabela</param>
-        /// <returns>Lista de comandos INSERT</returns>
         public List<string> GetTableDML(string tableName, string whereStat, string minMax, ref Int64 minId, ref Int64 maxId, ref Int64 minAutorizacao, ref Int64 maxAutorizacao)
         {
             List<string> dmlStatements = new List<string>();
-            
+
             // 1. Obter colunas da tabela
             string columnsQuery = $"SELECT COLUMN_NAME FROM USER_TAB_COLUMNS WHERE TABLE_NAME = '{tableName}' ORDER BY COLUMN_ID";
             DataTable columnsDt = _queryExecutor.ExecuteQuery(columnsQuery);
@@ -179,48 +174,24 @@ FROM USER_TABLES t
                 for (int i = 0; i < columnNames.Count; i++)
                 {
                     object value = row[i];
-                    if (value == DBNull.Value)
+
+                    // --- LÓGICA DE CONTROLE (ID, MIN, MAX) ---
+                    // Verifica os valores numéricos para o controle de range antes de formatar
+                    if (value != DBNull.Value && IsNumericType(value.GetType()))
                     {
-                        values.Add("NULL");
+                        if (minMax != null && columnNames[i].Equals(minMax))
+                        {
+                            Int64 valor = Convert.ToInt64(value);
+                            if (valor < minId) minId = valor;
+                            if (valor > maxId) maxId = valor;
+                            if (valor < minAutorizacao) minAutorizacao = valor;
+                            if (valor > maxAutorizacao) maxAutorizacao = valor;
+                        }
                     }
-                    else
-                    {
-                        // Simplificação: Trata strings e datas com aspas simples, números sem
-                        // O ideal seria verificar o tipo de dado (NUMBER, VARCHAR2, DATE, etc.)
-                        // Mas para um MVP, vamos tratar como string se não for número.
-                        if (value is IConvertible convertible && IsNumericType(convertible.GetType()))
-                        {
-                            string aux = Convert.ToString(value, CultureInfo.InvariantCulture);
-                            values.Add(aux);
 
-                            if (minMax != null && columnNames[i].Equals(minMax))
-                            {
-                                Int64 valor = Convert.ToInt64(value.ToString());
-                                if (valor < minId)
-                                    minId = valor;
-                                if (valor > maxId)
-                                    maxId = valor;
-                                if (valor < minAutorizacao)
-                                    minAutorizacao = valor;
-                                if (valor > maxAutorizacao)
-                                    maxAutorizacao = valor;
-                            }
-
-
-                        }
-                        else if (value is DateTime dateTimeValue)
-                        {
-                            // Formata data no padrão Oracle
-                            values.Add($"TO_DATE('{dateTimeValue:dd/MM/yyyy HH:mm:ss}', 'DD/MM/YYYY HH24:MI:SS')");
-                        }
-                        else
-                        {
-                            // Escapa aspas simples e envolve em aspas simples
-                            string stringValue = value.ToString().Replace("'", "''");
-                            values.Add($"'{stringValue}'");
-                        }
-
-                    }
+                    // --- FORMATAÇÃO DO VALOR PARA SQL (COM SUPORTE A CLOB) ---
+                    string sqlValue = FormatOracleValue(value);
+                    values.Add(sqlValue);
                 }
 
                 string valuesList = string.Join(", ", values);
@@ -228,6 +199,59 @@ FROM USER_TABLES t
             }
 
             return dmlStatements;
+        }
+
+        /// <summary>
+        /// Formata valores para SQL, tratando CLOBs grandes via concatenação
+        /// </summary>
+        private string FormatOracleValue(object value)
+        {
+            if (value == null || value == DBNull.Value)
+                return "NULL";
+
+            Type type = value.GetType();
+
+            // 1. NÚMEROS
+            if (IsNumericType(type))
+            {
+                return Convert.ToString(value, CultureInfo.InvariantCulture);
+            }
+
+            // 2. DATAS
+            if (value is DateTime dateTimeValue)
+            {
+                return $"TO_DATE('{dateTimeValue:dd/MM/yyyy HH:mm:ss}', 'DD/MM/YYYY HH24:MI:SS')";
+            }
+
+            // 3. STRINGS E CLOBS
+            string strValue = value.ToString();
+            // Escapa aspas simples (O'Neil -> O''Neil)
+            strValue = strValue.Replace("'", "''");
+
+            if (strValue.Length <= 4000)
+            {
+                return $"'{strValue}'";
+            }
+            else
+            {
+                // --- ESTRATÉGIA DE CHUNKING PARA CLOB ---
+                // Gera: TO_CLOB('parte1') || TO_CLOB('parte2') ...
+                StringBuilder clobBuilder = new StringBuilder();
+                int chunkSize = 4000;
+                int length = strValue.Length;
+
+                for (int i = 0; i < length; i += chunkSize)
+                {
+                    if (i > 0) clobBuilder.Append(" || ");
+
+                    int currentChunkSize = Math.Min(chunkSize, length - i);
+                    string chunk = strValue.Substring(i, currentChunkSize);
+
+                    clobBuilder.Append($"TO_CLOB('{chunk}')");
+                }
+
+                return clobBuilder.ToString();
+            }
         }
 
         private bool IsNumericType(Type type)
@@ -254,8 +278,6 @@ FROM USER_TABLES t
         /// <summary>
         /// Obtém o DDL de uma constraint
         /// </summary>
-        /// <param name="constraintName">Nome da constraint</param>
-        /// <returns>Script DDL</returns>
         public string GetConstraintDDL(string constraintName)
         {
             try

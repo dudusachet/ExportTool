@@ -10,9 +10,8 @@
 
 namespace PLSQLExportFull.Properties {
     using System;
-    using System.Drawing;
-
-
+    
+    
     /// <summary>
     ///   Uma classe de recurso de tipo de alta segurança, para pesquisar cadeias de caracteres localizadas etc.
     /// </summary>
@@ -24,7 +23,7 @@ namespace PLSQLExportFull.Properties {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
-        internal static Icon logo;
+        
         private static global::System.Resources.ResourceManager resourceMan;
         
         private static global::System.Globalization.CultureInfo resourceCulture;
@@ -58,6 +57,16 @@ namespace PLSQLExportFull.Properties {
             }
             set {
                 resourceCulture = value;
+            }
+        }
+        
+        /// <summary>
+        ///   Consulta um recurso localizado do tipo System.Byte[].
+        /// </summary>
+        internal static byte[] _7za {
+            get {
+                object obj = ResourceManager.GetObject("_7za", resourceCulture);
+                return ((byte[])(obj));
             }
         }
         
