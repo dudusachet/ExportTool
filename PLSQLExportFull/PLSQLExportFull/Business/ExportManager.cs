@@ -168,8 +168,6 @@ namespace PLSQLExportFull.Business
 
 
 
-
-
         }
 
         public void GenerateEnableConstraintsScript(List<ConstraintInfo> constraints, string outputFilePath)

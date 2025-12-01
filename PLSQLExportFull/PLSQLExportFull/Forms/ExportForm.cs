@@ -43,25 +43,39 @@ namespace PLSQLExportFull.Forms
             this.StartPosition = FormStartPosition.CenterScreen;
             this.tabControl.Selecting += new TabControlCancelEventHandler(this.tabControl_Selecting);
 
-            // Inicialização da UI
+            this.FormClosing += new FormClosingEventHandler(this.ExportForm_FormClosing);
+
+            if (!string.IsNullOrEmpty(Properties.Settings.Default.LastHost))
+            {
+                txtHost.Text = Properties.Settings.Default.LastHost;
+                txtPort.Text = Properties.Settings.Default.LastPort;
+                txtServiceName.Text = Properties.Settings.Default.LastService;
+                txtUserId.Text = Properties.Settings.Default.LastUser;
+                txtPassword.Text = Properties.Settings.Default.LastPassword;
+            }
+            else
+            {
+
+
+
+#if DEBUG
+                txtHost.Text = "172.25.100.205";
+                txtPort.Text = "1521";
+                txtServiceName.Text = "XE";
+                txtUserId.Text = "r22sp15";
+                txtPassword.Text = "r22sp15";
+#endif
+            }
+
             UpdateConnectionStatus();
             UpdateConnectionString();
             LoadTableGroups();
-
-#if DEBUG
-            txtHost.Text = "172.25.100.205";
-            txtPort.Text = "1521";
-            txtServiceName.Text = "XE";
-            txtUserId.Text = "r22sp15";
-            txtPassword.Text = "r22sp15";
-#endif
         }
+            // ====================================================================
+            // MÉTODOS DE CONEXÃO
+            // ====================================================================
 
-        // ====================================================================
-        // MÉTODOS DE CONEXÃO
-        // ====================================================================
-
-        private void UpdateConnectionString()
+            private void UpdateConnectionString()
         {
             string host = txtHost.Text;
             string port = txtPort.Text;
@@ -76,6 +90,26 @@ namespace PLSQLExportFull.Forms
 
 
 
+
+        private void ExportForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            // 1. Desconecta se necessário
+            if (_connectionManager != null && _connectionManager.IsConnected)
+            {
+                _connectionManager.Disconnect();
+            }
+
+            // 2. Salva os valores dos campos nas configurações
+            Properties.Settings.Default.LastHost = txtHost.Text.Trim();
+            Properties.Settings.Default.LastPort = txtPort.Text.Trim();
+            Properties.Settings.Default.LastService = txtServiceName.Text.Trim();
+            Properties.Settings.Default.LastUser = txtUserId.Text.Trim();
+            Properties.Settings.Default.LastPassword = txtPassword.Text; // Cuidado: Salva em texto puro
+
+            // 3. Persiste no disco
+            Properties.Settings.Default.Save();
+        }
+        // -------------------------------------------
         private void UpdateConnectionStatus()
         {
             bool isConnected = _connectionManager.IsConnected;
@@ -579,29 +613,48 @@ namespace PLSQLExportFull.Forms
 
             SaveFileDialog sfd = new SaveFileDialog
             {
-                Filter = "SQL (*.sql;*.pdc)|*.sql;*.pdc",
+                Filter = "SQL Script (*.sql;*.pdc)|*.sql;*.pdc",
+                Title = "Salvar Script de Exportação",
                 FileName = $"{txtUserId.Text}_{cmbTableGroups.Text.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmm}.sql.pdc"
             };
 
             if (sfd.ShowDialog() == DialogResult.OK)
             {
-                string manualWhere = txtWhereClause.Text.Trim();
                 bool isGroup = cmbTableGroups.SelectedIndex > 0;
+                string manualWhere = txtWhereClause.Text.Trim();
+                string whereFormatado = "";
+
+                // --- LÓGICA INTELIGENTE DO WHERE ---
+                if (!isGroup && !string.IsNullOrEmpty(manualWhere))
+                {
+                    // 1. Remove "WHERE" se o usuário tiver escrito (ignora maiúscula/minúscula)
+                    if (manualWhere.StartsWith("WHERE", StringComparison.OrdinalIgnoreCase))
+                    {
+                        manualWhere = manualWhere.Substring(5).Trim();
+                    }
+
+                    // 2. Remove ponto e vírgula no final se houver
+                    manualWhere = manualWhere.TrimEnd(';');
+
+                    // 3. Monta a string final garantindo que o WHERE exista e tenha espaço
+                    whereFormatado = " WHERE " + manualWhere;
+                }
 
                 var data = selectedTables.Select(t => new TableExportData
                 {
                     TableName = t.TableName,
-                    WhereClause = (!isGroup && !string.IsNullOrEmpty(manualWhere)) ? manualWhere.TrimEnd(';') : t.Where,
+                    // Se tiver um WHERE manual formatado, usa ele. Senão, usa o do JSON (t.Where)
+                    WhereClause = (!string.IsNullOrEmpty(whereFormatado)) ? whereFormatado : t.Where,
                     MinMax = t.MinMax
                 }).ToList();
-
 
                 ExportArguments args = new ExportArguments
                 {
                     Tables = data,
                     FilePath = sfd.FileName,
                     GroupName = cmbTableGroups.Text,
-                    Servidor = $"{txtUserId.Text}/ @{txtHost.Text}:{txtPort.Text}/{txtServiceName.Text}",
+                    // Se tiver a propriedade Servidor no seu objeto:
+                    // Servidor = $"{txtUserId.Text}/@{txtHost.Text}:{txtPort.Text}/{txtServiceName.Text}", 
                     Truncate = chkTruncate.Checked
                 };
 
@@ -616,7 +669,6 @@ namespace PLSQLExportFull.Forms
                 worker.RunWorkerAsync(args);
             }
         }
-
 
         private void Worker_DoWork(object sender, DoWorkEventArgs e)
         {
@@ -638,7 +690,7 @@ namespace PLSQLExportFull.Forms
 
             var p = new System.Diagnostics.ProcessStartInfo();
             p.FileName = Path.Combine(Application.StartupPath, "7za.exe");
-            p.Arguments = "a -t7z -m0=lzma2 -mx=9 \"" + targetName + "\"";
+            p.Arguments = "a -t7z -m0=lzma2 -mx=9 -sdel \"" + targetName + "\"";
 
             p.Arguments += " \"" + args.FilePath + "\"";
 

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using PLSQLExportFull.Models;
 using System.Globalization;
-using System.Text; // Required for StringBuilder
+using System.Text;
 
 namespace PLSQLExportFull.Data
 {
@@ -14,10 +14,23 @@ namespace PLSQLExportFull.Data
     {
         private OracleQueryExecutor _queryExecutor;
 
+        // ========================================================================
+        // BLACKLIST LGPD - DEFINIÇÃO DE CAMPOS SENSÍVEIS
+        // ========================================================================
+        private static readonly Dictionary<string, HashSet<string>> _sensitiveColumns = new Dictionary<string, HashSet<string>>
+        {
+            { "PEDIDOS",                    new HashSet<string> { "CNPJ", "NOME_REPRES", "NOME_CLIENTE", "ENDERECO", "FONE" } },
+            { "PEDIDOS_ERP",                new HashSet<string> { "CNPJ", "NOME_CLIENTE", "ENDERECO", "FONE" } },
+            { "RESERVA",                    new HashSet<string> { "CNPJ", "NOME_CLIENTE" } },
+            { "WMS_CLIENTES",               new HashSet<string> { "CNPJ", "NOME" } },
+            { "WMS_COLABORADORES",          new HashSet<string> { "NOME" } },
+            { "GER_USUARIOS",               new HashSet<string> { "NOMECOMPLETO", "EMAIL" } },
+            { "WMS_MOTORISTAS",               new HashSet<string> { "PLACA", "NOME", "FONE", "NOME","NUMERO_CNH" } }
+        };
+
         /// <summary>
         /// Construtor
         /// </summary>
-        /// <param name="queryExecutor">Executor de queries</param>
         public MetadataRepository(OracleQueryExecutor queryExecutor)
         {
             _queryExecutor = queryExecutor ?? throw new ArgumentNullException(nameof(queryExecutor));
@@ -114,8 +127,8 @@ FROM USER_TABLES t
                 {
                     TableName = row["TABLE_NAME"].ToString(),
                     NumRows = row["NUM_ROWS"] != DBNull.Value ? Convert.ToInt64(row["NUM_ROWS"]) : 0,
-                    MinMax = tablesGroup?.Find(t => t.TableName == row["TABLE_NAME"].ToString()).MinMax,
-                    Where = tablesGroup?.Find(t => t.TableName == row["TABLE_NAME"].ToString()).Where,
+                    MinMax = tablesGroup?.Find(t => t.TableName == row["TABLE_NAME"].ToString())?.MinMax,
+                    Where = tablesGroup?.Find(t => t.TableName == row["TABLE_NAME"].ToString())?.Where,
                     TablespaceName = row["TABLESPACE_NAME"] != DBNull.Value ? row["TABLESPACE_NAME"].ToString() : null
                 });
             }
@@ -141,7 +154,7 @@ FROM USER_TABLES t
         }
 
         /// <summary>
-        /// Obtém o DML (INSERT statements) de uma tabela com suporte a CLOB
+        /// Obtém o DML (INSERT statements) de uma tabela com suporte a CLOB e LGPD
         /// </summary>
         public List<string> GetTableDML(string tableName, string whereStat, string minMax, ref Int64 minId, ref Int64 maxId, ref Int64 minAutorizacao, ref Int64 maxAutorizacao)
         {
@@ -174,23 +187,28 @@ FROM USER_TABLES t
                 for (int i = 0; i < columnNames.Count; i++)
                 {
                     object value = row[i];
+                    string colName = columnNames[i]; // Nome da coluna para verificação LGPD e MinMax
 
                     // --- LÓGICA DE CONTROLE (ID, MIN, MAX) ---
-                    // Verifica os valores numéricos para o controle de range antes de formatar
                     if (value != DBNull.Value && IsNumericType(value.GetType()))
                     {
-                        if (minMax != null && columnNames[i].Equals(minMax))
+                        if (minMax != null && colName.Equals(minMax))
                         {
-                            Int64 valor = Convert.ToInt64(value);
-                            if (valor < minId) minId = valor;
-                            if (valor > maxId) maxId = valor;
-                            if (valor < minAutorizacao) minAutorizacao = valor;
-                            if (valor > maxAutorizacao) maxAutorizacao = valor;
+                            try
+                            {
+                                Int64 valor = Convert.ToInt64(value);
+                                if (valor < minId) minId = valor;
+                                if (valor > maxId) maxId = valor;
+                                if (valor < minAutorizacao) minAutorizacao = valor;
+                                if (valor > maxAutorizacao) maxAutorizacao = valor;
+                            }
+                            catch { }
                         }
                     }
 
-                    // --- FORMATAÇÃO DO VALOR PARA SQL (COM SUPORTE A CLOB) ---
-                    string sqlValue = FormatOracleValue(value);
+                    // --- FORMATAÇÃO DO VALOR PARA SQL (COM LGPD + CLOB) ---
+                    // Passamos tableName e colName para verificar se precisa ofuscar
+                    string sqlValue = FormatOracleValue(value, tableName, colName);
                     values.Add(sqlValue);
                 }
 
@@ -202,33 +220,44 @@ FROM USER_TABLES t
         }
 
         /// <summary>
-        /// Formata valores para SQL, tratando CLOBs grandes via concatenação
+        /// Formata valores para SQL, aplicando LGPD e tratando CLOBs
         /// </summary>
-        private string FormatOracleValue(object value)
+        private string FormatOracleValue(object value, string tableName, string columnName)
         {
+            // 1. VERIFICAÇÃO LGPD (OFUSCAMENTO)
+            // Se a tabela e a coluna estiverem no dicionário de sensíveis, retorna valor mascarado
+            if (_sensitiveColumns.TryGetValue(tableName.ToUpper(), out HashSet<string> sensitiveCols))
+            {
+                if (sensitiveCols.Contains(columnName.ToUpper()))
+                {
+                    return "'LGPD_PROTECTED'";
+                }
+            }
+
+            // 2. TRATAMENTO DE NULOS
             if (value == null || value == DBNull.Value)
                 return "NULL";
 
             Type type = value.GetType();
 
-            // 1. NÚMEROS
+            // 3. NÚMEROS
             if (IsNumericType(type))
             {
-                return Convert.ToString(value, CultureInfo.InvariantCulture);
+                return Convert.ToString(value, CultureInfo.InvariantCulture).Replace(",", ".");
             }
 
-            // 2. DATAS
+            // 4. DATAS
             if (value is DateTime dateTimeValue)
             {
                 return $"TO_DATE('{dateTimeValue:dd/MM/yyyy HH:mm:ss}', 'DD/MM/YYYY HH24:MI:SS')";
             }
 
-            // 3. STRINGS E CLOBS
+            // 5. STRINGS E CLOBS
             string strValue = value.ToString();
-            // Escapa aspas simples (O'Neil -> O''Neil)
-            strValue = strValue.Replace("'", "''");
+            strValue = strValue.Replace("'", "''"); // Escapa aspas simples
 
-            if (strValue.Length <= 4000)
+            // Limite seguro para literais (usando 2000 por segurança de encoding)
+            if (strValue.Length <= 2000)
             {
                 return $"'{strValue}'";
             }
@@ -237,7 +266,7 @@ FROM USER_TABLES t
                 // --- ESTRATÉGIA DE CHUNKING PARA CLOB ---
                 // Gera: TO_CLOB('parte1') || TO_CLOB('parte2') ...
                 StringBuilder clobBuilder = new StringBuilder();
-                int chunkSize = 4000;
+                int chunkSize = 2000;
                 int length = strValue.Length;
 
                 for (int i = 0; i < length; i += chunkSize)
@@ -275,9 +304,6 @@ FROM USER_TABLES t
             }
         }
 
-        /// <summary>
-        /// Obtém o DDL de uma constraint
-        /// </summary>
         public string GetConstraintDDL(string constraintName)
         {
             try
@@ -292,23 +318,15 @@ FROM USER_TABLES t
             }
         }
 
-        /// <summary>
-        /// Obtém descrição do tipo de constraint
-        /// </summary>
         private string GetConstraintTypeDescription(string type)
         {
             switch (type)
             {
-                case "P":
-                    return "Primary Key";
-                case "R":
-                    return "Foreign Key";
-                case "U":
-                    return "Unique";
-                case "C":
-                    return "Check";
-                default:
-                    return type;
+                case "P": return "Primary Key";
+                case "R": return "Foreign Key";
+                case "U": return "Unique";
+                case "C": return "Check";
+                default: return type;
             }
         }
     }

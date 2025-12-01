@@ -22,5 +22,65 @@ namespace PLSQLExportFull.Properties {
                 return defaultInstance;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastHost {
+            get {
+                return ((string)(this["LastHost"]));
+            }
+            set {
+                this["LastHost"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastPort {
+            get {
+                return ((string)(this["LastPort"]));
+            }
+            set {
+                this["LastPort"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastService {
+            get {
+                return ((string)(this["LastService"]));
+            }
+            set {
+                this["LastService"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastUser {
+            get {
+                return ((string)(this["LastUser"]));
+            }
+            set {
+                this["LastUser"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastPassword {
+            get {
+                return ((string)(this["LastPassword"]));
+            }
+            set {
+                this["LastPassword"] = value;
+            }
+        }
     }
 }
