@@ -1,4 +1,4 @@
-# PLSQL Migration Suite - Export Tool (PLSQLExportTool)
+# SQL Export Full (PLSQLExportTool)
 
 ## Visão Geral
 
