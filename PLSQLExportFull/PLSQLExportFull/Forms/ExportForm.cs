@@ -175,7 +175,7 @@ namespace PLSQLExportFull.Forms
                     e.Cancel = true;
 
                     // Opcional: Exibe um aviso sonoro ou mensagem
-                    // System.Media.SystemSounds.Beep.Play(); 
+                    //System.Media.SystemSounds.Beep.Play(); 
                     MessageBox.Show("Conecte-se ao banco de dados para acessar esta aba.", "Acesso Negado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
@@ -235,32 +235,52 @@ namespace PLSQLExportFull.Forms
             {
                 toolStripStatusLabel.Text = "Conectando...";
 
-                // 1. LÓGICA DE SOBREPOSIÇÃO: Se já estiver conectado, desconecta primeiro
+                // 1. SE JÁ ESTIVER CONECTADO: Limpa tudo antes de trocar
                 if (_connectionManager.IsConnected)
                 {
-                    // Desconecta do banco anterior
                     _connectionManager.Disconnect();
-
-                    // LIMPEZA DE DADOS: Importante para não exibir tabelas do banco antigo
-                    checkedListExportTables.Items.Clear();
-                    if (_allTables != null) _allTables.Clear();
-
-                    // Opcional: reseta o combo de grupos
-                    if (cmbTableGroups.Items.Count > 0) cmbTableGroups.SelectedIndex = 0;
                 }
 
-                // 2. Conecta no novo banco (com os dados atuais dos TextBoxes)
+                // --- LIMPEZA CRÍTICA ---
+                // Garante que a lista visual e a memória sejam limpas antes da nova conexão
+                checkedListExportTables.Items.Clear();
+                if (_allTables != null) _allTables.Clear();
+                // -----------------------
+
+                // 2. Conecta no novo banco
                 _connectionManager.Connect();
 
-                // 3. Atualiza a UI
+                // 3. Atualiza a UI (Cores, Botões)
                 UpdateConnectionStatus();
+
+                // 4. FORÇA O RECARREGAMENTO DA LISTA (O Segredo está aqui)
+                // Isso garante que busquemos o NUM_ROWS do banco novo imediatamente
+                if (cmbTableGroups.Items.Count > 0)
+                {
+                    if (cmbTableGroups.SelectedIndex == -1)
+                    {
+                        // Se não tinha nada, seleciona o primeiro (isso dispara o evento e carrega)
+                        cmbTableGroups.SelectedIndex = 0;
+                    }
+                    else
+                    {
+                        // Se já estava selecionado (ex: "Todos"), o evento não dispara sozinho.
+                        // Chamamos RefreshTables manualmente para buscar os dados novos.
+                        RefreshTables();
+                    }
+                }
+
                 MessageBox.Show("Conectado com sucesso!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 toolStripStatusLabel.Text = "Conectado";
             }
             catch (Exception ex)
             {
-                // Se der erro ao conectar no novo, garante que o status fique como desconectado
+                // Se falhar, garante que a UI reflita "Desconectado"
                 UpdateConnectionStatus();
+
+                // Limpa a lista para não mostrar dados falsos se a conexão falhar
+                checkedListExportTables.Items.Clear();
+
                 MessageBox.Show($"Falha ao conectar: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 toolStripStatusLabel.Text = "Falha ao conectar";
             }
@@ -298,18 +318,13 @@ namespace PLSQLExportFull.Forms
 
                     if (!string.IsNullOrEmpty(strConexao))
                     {
-                        // --- A CORREÇÃO ESTÁ AQUI ---
 
-                        // 1. Levanta a trava para o TextChanged não sobrescrever o que estamos carregando
                         _isParsingConnectionString = true;
 
-                        // 2. Joga o texto na tela (agora seguro)
                         txtConnectionString.Text = strConexao;
 
-                        // 3. Abaixa a trava para que o parser possa funcionar
                         _isParsingConnectionString = false;
 
-                        // 4. Chama o parser manualmente para ler a string e preencher Host, User, etc.
                         txtConnectionString_Leave(sender, e);
 
                         MessageBox.Show("Configuração importada com sucesso!", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -321,7 +336,6 @@ namespace PLSQLExportFull.Forms
                 }
                 catch (Exception ex)
                 {
-                    // Garante que a trava seja liberada em caso de erro
                     _isParsingConnectionString = false;
                     MessageBox.Show("Erro ao ler arquivo: " + ex.Message, "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
@@ -615,7 +629,7 @@ namespace PLSQLExportFull.Forms
             {
                 Filter = "SQL Script (*.sql;*.pdc)|*.sql;*.pdc",
                 Title = "Salvar Script de Exportação",
-                FileName = $"{txtUserId.Text}_{cmbTableGroups.Text.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmm}.sql.pdc"
+                FileName = $"{txtUserId.Text}_{cmbTableGroups.Text.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmmss}.sql.pdc"
             };
 
             if (sfd.ShowDialog() == DialogResult.OK)
@@ -654,7 +668,7 @@ namespace PLSQLExportFull.Forms
                     FilePath = sfd.FileName,
                     GroupName = cmbTableGroups.Text,
                     // Se tiver a propriedade Servidor no seu objeto:
-                    // Servidor = $"{txtUserId.Text}/@{txtHost.Text}:{txtPort.Text}/{txtServiceName.Text}", 
+                     Servidor = $"{txtUserId.Text}/@{txtHost.Text}:{txtPort.Text}/{txtServiceName.Text}", 
                     Truncate = chkTruncate.Checked
                 };
 

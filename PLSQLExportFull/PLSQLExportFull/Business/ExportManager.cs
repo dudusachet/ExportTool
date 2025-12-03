@@ -77,9 +77,9 @@ namespace PLSQLExportFull.Business
                         if (novoWhere.Contains(":MIN"))
                         {
                             novoWhere = novoWhere.Replace(":MIN_ID", minId.ToString())
-                                             .Replace(":MAX_ID", maxId.ToString())
-                                             .Replace(":MIN_AUTORIZACAO", minAutorizacao.ToString())
-                                             .Replace(":MAX_AUTORIZACAO", maxAutorizacao.ToString());
+                                                 .Replace(":MAX_ID", maxId.ToString())
+                                                 .Replace(":MIN_AUTORIZACAO", minAutorizacao.ToString())
+                                                 .Replace(":MAX_AUTORIZACAO", maxAutorizacao.ToString());
                         }
                     }
 
@@ -113,6 +113,9 @@ namespace PLSQLExportFull.Business
                     // --------------------------
 
                     dmlScript.AppendLine($"prompt Processando: {table.TableName} - {insertStatements.Count} registros encontrados");
+                    dmlScript.AppendLine($"prompt Filtro:{table.WhereClause}");
+                    dmlScript.AppendLine();
+                    dmlScript.AppendLine($"---Filtro aplicado:{table.WhereClause}");
                     dmlScript.AppendLine("SET TERMOUT OFF");
 
                     // ---------------------------------------------------------
@@ -150,7 +153,6 @@ namespace PLSQLExportFull.Business
                     dmlScript.AppendLine($"-- Detalhe: {ex.ToString()}");
                     dmlScript.AppendLine();
                 }
-
             }
 
             // ---------------------------------------------------------
@@ -165,9 +167,6 @@ namespace PLSQLExportFull.Business
 
             // Grava o arquivo
             File.WriteAllText(outputFilePath, dmlScript.ToString(), Encoding.UTF8);
-
-
-
         }
 
         public void GenerateEnableConstraintsScript(List<ConstraintInfo> constraints, string outputFilePath)
@@ -186,8 +185,6 @@ namespace PLSQLExportFull.Business
             }
 
             File.WriteAllText(outputFilePath, script.ToString(), Encoding.UTF8);
-
-
-         }
+        }
     }
 }
