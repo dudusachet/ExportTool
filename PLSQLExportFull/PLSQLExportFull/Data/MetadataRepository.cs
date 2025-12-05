@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using PLSQLExportFull.Models;
 using System.Globalization;
-using System.Text; // Required for StringBuilder
+using System.Text; 
 
 namespace PLSQLExportFull.Data
 {

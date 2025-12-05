@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using PLSQLExportFull.Data;
 using PLSQLExportFull.Models;
+using Oracle.ManagedDataAccess.Client;
 
 namespace PLSQLExportFull.Business
 {
@@ -19,7 +20,7 @@ namespace PLSQLExportFull.Business
         private OracleQueryExecutor _queryExecutor;
         private MetadataRepository _metadataRepository;
 
-        // Controle de IDs para cláusulas WHERE dinâmicas
+        // Controle de IDs para substituição no WHERE
         private Int64 minId = Int64.MaxValue;
         private Int64 maxId = 0;
         private Int64 minAutorizacao = Int64.MaxValue;
@@ -31,19 +32,19 @@ namespace PLSQLExportFull.Business
             _metadataRepository = metadataRepository ?? throw new ArgumentNullException(nameof(metadataRepository));
         }
 
-        public void ExportTablesDML(List<TableExportData> tablesToExport, string outputFilePath, string groupname, bool truncate, string servidor)
+        public void ExportTablesDML(List<TableExportData> tablesToExport, string outputFilePath, string groupname, bool truncate, string servidorInfo)
         {
             if (tablesToExport == null || tablesToExport.Count == 0)
-                throw new ArgumentException("Nenhuma tabela selecionada para exportação.");
+                throw new ArgumentException("Nenhuma tabela selecionada.");
 
             if (string.IsNullOrEmpty(outputFilePath))
-                throw new ArgumentException("Caminho do arquivo de saída não pode ser vazio.");
+                throw new ArgumentException("Caminho inválido.");
+
+            if (string.IsNullOrEmpty(servidorInfo)) servidorInfo = "N/A";
 
             StringBuilder dmlScript = new StringBuilder();
 
-            // ---------------------------------------------------------
-            // 1. Cabeçalho e Configurações Globais
-            // ---------------------------------------------------------
+            // 1. Cabeçalho Global
             dmlScript.AppendLine("-- Configurações de Ambiente");
             dmlScript.AppendLine("SET ECHO OFF");
             dmlScript.AppendLine("SET FEEDBACK OFF");
@@ -53,16 +54,12 @@ namespace PLSQLExportFull.Business
             dmlScript.AppendLine("SET SQLBLANKLINES ON");
             dmlScript.AppendLine("SET TIMING OFF");
             dmlScript.AppendLine();
-
-            dmlScript.AppendLine($"-- Origem: {servidor}");
+            dmlScript.AppendLine($"-- Origem: {servidorInfo}");
             dmlScript.AppendLine($"-- Script: {groupname}");
             dmlScript.AppendLine($"-- Gerado em: {DateTime.Now:dd/MM/yyyy HH:mm:ss}");
-            dmlScript.AppendLine($"-- Tabelas: {tablesToExport.Count}");
             dmlScript.AppendLine();
 
-            // Log de Início Geral
             dmlScript.AppendLine("SET TERMOUT ON");
-            // Mostra o nome do banco na tela do SQL Plus também
             dmlScript.AppendLine($"SELECT 'Inicio: ' || TO_CHAR(SYSDATE, 'DD/MM/YYYY HH24:MI:SS') FROM DUAL;");
             dmlScript.AppendLine("SET TERMOUT OFF");
             dmlScript.AppendLine();
@@ -71,21 +68,18 @@ namespace PLSQLExportFull.Business
             {
                 try
                 {
+                    // Ajuste do WHERE
                     var novoWhere = table.WhereClause;
-                    if (!string.IsNullOrEmpty(novoWhere))
+                    if (!string.IsNullOrEmpty(novoWhere) && novoWhere.Contains(":MIN"))
                     {
-                        if (novoWhere.Contains(":MIN"))
-                        {
-                            novoWhere = novoWhere.Replace(":MIN_ID", minId.ToString())
-                                                 .Replace(":MAX_ID", maxId.ToString())
-                                                 .Replace(":MIN_AUTORIZACAO", minAutorizacao.ToString())
-                                                 .Replace(":MAX_AUTORIZACAO", maxAutorizacao.ToString());
-                        }
+                        novoWhere = novoWhere.Replace(":MIN_ID", minId.ToString())
+                                             .Replace(":MAX_ID", maxId.ToString())
+                                             .Replace(":MIN_AUTORIZACAO", minAutorizacao.ToString())
+                                             .Replace(":MAX_AUTORIZACAO", maxAutorizacao.ToString());
                     }
+                    string textoFiltro = string.IsNullOrWhiteSpace(novoWhere) ? "Nenhum Filtro" : novoWhere.Trim();
 
-                    // ---------------------------------------------------------
-                    // 2. BUSCA DADOS
-                    // ---------------------------------------------------------
+                    // 2. Busca Dados
                     List<string> insertStatements = _metadataRepository.GetTableDML(
                         table.TableName,
                         novoWhere,
@@ -96,95 +90,66 @@ namespace PLSQLExportFull.Business
                         ref maxAutorizacao
                     );
 
-                    // ---------------------------------------------------------
-                    // 3. Escreve o Bloco de Log (Visível)
-                    // ---------------------------------------------------------
-                    dmlScript.AppendLine("SET TERMOUT ON");
-                    dmlScript.AppendLine("prompt --------------------------------------------------------------------------------");
-                    dmlScript.AppendLine();
-                    dmlScript.AppendLine($"SELECT 'Tabela {table.TableName}: ' || TO_CHAR(SYSDATE, 'HH24:MI:SS') FROM DUAL;");
+                    int count = insertStatements.Count;
 
-                    // --- LÓGICA DO TRUNCATE ---
+                    // 3. Escreve Cabeçalho da Tabela no Script
+                    dmlScript.AppendLine("SET TERMOUT ON");
+                    dmlScript.AppendLine("prompt --------------------------------------------------");
+                    dmlScript.AppendLine($"SELECT 'Processando {table.TableName}...' FROM DUAL;");
+                    dmlScript.AppendLine($"prompt Filtro aplicado: {textoFiltro}");
+
                     if (truncate)
                     {
                         dmlScript.AppendLine($"prompt [!] Truncating {table.TableName}...");
                         dmlScript.AppendLine($"TRUNCATE TABLE {table.TableName};");
                     }
-                    // --------------------------
 
-                    dmlScript.AppendLine($"prompt Processando: {table.TableName} - {insertStatements.Count} registros encontrados");
-                    dmlScript.AppendLine($"prompt Filtro:{table.WhereClause}");
-                    dmlScript.AppendLine();
-                    dmlScript.AppendLine($"---Filtro aplicado:{table.WhereClause}");
+                    dmlScript.AppendLine($"prompt Registros Gerados no Script: {count}");
                     dmlScript.AppendLine("SET TERMOUT OFF");
 
-                    // ---------------------------------------------------------
-                    // 4. Escreve os Inserts (Invisíveis)
-                    // ---------------------------------------------------------
-                    if (insertStatements.Count > 0)
+                    // 4. Gera INSERTs
+                    if (count > 0)
                     {
-                        var count = 0;
+                        int rowCount = 0;
                         dmlScript.AppendLine();
-
                         foreach (string insert in insertStatements)
                         {
                             dmlScript.AppendLine(insert);
-                            count++;
-
-                            if (count % 100 == 0)
-                            {
-                                dmlScript.AppendLine("commit;");
-                            }
+                            rowCount++;
+                            if (rowCount % 100 == 0) dmlScript.AppendLine("commit;");
                         }
                         dmlScript.AppendLine("commit;");
+                        dmlScript.AppendLine();
+                        dmlScript.AppendLine("SET TERMOUT ON");
+                        dmlScript.AppendLine($"SELECT 'VALIDACAO {table.TableName}: Esperado:' || {count} || ' | Encontrado:' || COUNT(1) FROM {table.TableName};");
+                        dmlScript.AppendLine("SET TERMOUT OFF");
                     }
                     else
                     {
-                        dmlScript.AppendLine($"-- Tabela {table.TableName} vazia ou sem dados no filtro.");
+                        dmlScript.AppendLine($"-- Tabela vazia ou sem dados.");
+                        dmlScript.AppendLine("SET TERMOUT ON");
+                        dmlScript.AppendLine("prompt Tabela vazia (0 registros gerados).");
+                        dmlScript.AppendLine("SET TERMOUT OFF");
                     }
-
-                    dmlScript.AppendLine(); // Espaço entre tabelas
+                    dmlScript.AppendLine();
                 }
                 catch (Exception ex)
                 {
                     dmlScript.AppendLine("SET TERMOUT ON");
-                    dmlScript.AppendLine($"prompt ERRO AO PROCESSAR TABELA {table.TableName}: {ex.Message}");
+                    dmlScript.AppendLine($"prompt ERRO NO C# AO PROCESSAR {table.TableName}: {ex.Message}");
                     dmlScript.AppendLine("SET TERMOUT OFF");
-                    dmlScript.AppendLine($"-- Detalhe: {ex.ToString()}");
+                    dmlScript.AppendLine($"-- Erro Detalhado: {ex.ToString()}");
                     dmlScript.AppendLine();
                 }
             }
 
-            // ---------------------------------------------------------
-            // 5. Log de Fim Geral
-            // ---------------------------------------------------------
+            // Rodapé
             dmlScript.AppendLine("SET TERMOUT ON");
-            dmlScript.AppendLine("prompt --------------------------------------------------------------------------------");
-            dmlScript.AppendLine();
-            dmlScript.AppendLine("SELECT 'Fim do processo: ' || TO_CHAR(SYSDATE, 'DD/MM/YYYY HH24:MI:SS') FROM DUAL;");
-            dmlScript.AppendLine("prompt --------------------------------------------------------------------------------");
-            dmlScript.AppendLine();
+            dmlScript.AppendLine("prompt --------------------------------------------------");
+            dmlScript.AppendLine("SELECT 'Fim: ' || TO_CHAR(SYSDATE, 'DD/MM/YYYY HH24:MI:SS') FROM DUAL;");
+            dmlScript.AppendLine("prompt --------------------------------------------------");
 
-            // Grava o arquivo
             File.WriteAllText(outputFilePath, dmlScript.ToString(), Encoding.UTF8);
-        }
-
-        public void GenerateEnableConstraintsScript(List<ConstraintInfo> constraints, string outputFilePath)
-        {
-            if (constraints == null || constraints.Count == 0) return;
-
-            StringBuilder script = new StringBuilder();
-            script.AppendLine("-- ========================================");
-            script.AppendLine($"-- Reabilitar Constraints - {DateTime.Now}");
-            script.AppendLine("-- ========================================");
-            script.AppendLine();
-
-            foreach (ConstraintInfo constraint in constraints)
-            {
-                script.AppendLine($"ALTER TABLE {constraint.TableName} ENABLE CONSTRAINT {constraint.ConstraintName};");
-            }
-
-            File.WriteAllText(outputFilePath, script.ToString(), Encoding.UTF8);
         }
     }
 }

@@ -31,7 +31,6 @@ namespace PLSQLExportFull.Forms
         public ExportForm()
         {
             InitializeComponent();
-
             this.MinimumSize = new System.Drawing.Size(620, 530);
 
             // Inicialização das dependências

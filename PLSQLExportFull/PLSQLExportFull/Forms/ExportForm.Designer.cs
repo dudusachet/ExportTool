@@ -68,6 +68,17 @@ namespace PLSQLExportFull.Forms
             this.statusStrip.SuspendLayout();
             this.SuspendLayout();
             // 
+            // chkTruncate
+            // 
+            this.chkTruncate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.chkTruncate.AutoSize = true;
+            this.chkTruncate.Location = new System.Drawing.Point(299, 398);
+            this.chkTruncate.Name = "chkTruncate";
+            this.chkTruncate.Size = new System.Drawing.Size(140, 17);
+            this.chkTruncate.TabIndex = 12;
+            this.chkTruncate.Text = "Truncar tabelas (Limpar)";
+            this.chkTruncate.UseVisualStyleBackColor = true;
+            // 
             // tabControl
             // 
             this.tabControl.Controls.Add(this.tabConnection);
@@ -77,7 +88,7 @@ namespace PLSQLExportFull.Forms
             this.tabControl.Margin = new System.Windows.Forms.Padding(2);
             this.tabControl.Name = "tabControl";
             this.tabControl.SelectedIndex = 0;
-            this.tabControl.Size = new System.Drawing.Size(600, 469);
+            this.tabControl.Size = new System.Drawing.Size(600, 541);
             this.tabControl.TabIndex = 0;
             // 
             // tabConnection
@@ -103,7 +114,7 @@ namespace PLSQLExportFull.Forms
             this.tabConnection.Margin = new System.Windows.Forms.Padding(2);
             this.tabConnection.Name = "tabConnection";
             this.tabConnection.Padding = new System.Windows.Forms.Padding(2);
-            this.tabConnection.Size = new System.Drawing.Size(592, 443);
+            this.tabConnection.Size = new System.Drawing.Size(592, 515);
             this.tabConnection.TabIndex = 0;
             this.tabConnection.Text = "Conexão";
             this.tabConnection.UseVisualStyleBackColor = true;
@@ -300,21 +311,10 @@ namespace PLSQLExportFull.Forms
             this.tabExport.Margin = new System.Windows.Forms.Padding(2);
             this.tabExport.Name = "tabExport";
             this.tabExport.Padding = new System.Windows.Forms.Padding(2);
-            this.tabExport.Size = new System.Drawing.Size(592, 443);
+            this.tabExport.Size = new System.Drawing.Size(592, 515);
             this.tabExport.TabIndex = 4;
             this.tabExport.Text = "Exportação DML";
             this.tabExport.UseVisualStyleBackColor = true;
-            // 
-            // chkTruncate
-            // 
-            this.chkTruncate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.chkTruncate.AutoSize = true;
-            this.chkTruncate.Location = new System.Drawing.Point(320, 373); // Ajuste a posição X para ficar à esquerda do botão Exportar
-            this.chkTruncate.Name = "chkTruncate";
-            this.chkTruncate.Size = new System.Drawing.Size(120, 17);
-            this.chkTruncate.TabIndex = 12; // Ajuste o TabIndex conforme necessário
-            this.chkTruncate.Text = "Truncar tabelas (Limpar)";
-            this.chkTruncate.UseVisualStyleBackColor = true;
             // 
             // btnSortByRowsExport
             // 
@@ -364,7 +364,7 @@ namespace PLSQLExportFull.Forms
             // btnDeselectAllExport
             // 
             this.btnDeselectAllExport.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.btnDeselectAllExport.Location = new System.Drawing.Point(105, 367);
+            this.btnDeselectAllExport.Location = new System.Drawing.Point(102, 393);
             this.btnDeselectAllExport.Margin = new System.Windows.Forms.Padding(2);
             this.btnDeselectAllExport.Name = "btnDeselectAllExport";
             this.btnDeselectAllExport.Size = new System.Drawing.Size(82, 24);
@@ -376,7 +376,7 @@ namespace PLSQLExportFull.Forms
             // btnSelectAllExport
             // 
             this.btnSelectAllExport.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-            this.btnSelectAllExport.Location = new System.Drawing.Point(15, 367);
+            this.btnSelectAllExport.Location = new System.Drawing.Point(12, 393);
             this.btnSelectAllExport.Margin = new System.Windows.Forms.Padding(2);
             this.btnSelectAllExport.Name = "btnSelectAllExport";
             this.btnSelectAllExport.Size = new System.Drawing.Size(82, 24);
@@ -389,7 +389,7 @@ namespace PLSQLExportFull.Forms
             // 
             this.btnExport.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.btnExport.Font = new System.Drawing.Font("Microsoft YaHei UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnExport.Location = new System.Drawing.Point(447, 367);
+            this.btnExport.Location = new System.Drawing.Point(444, 393);
             this.btnExport.Margin = new System.Windows.Forms.Padding(2);
             this.btnExport.Name = "btnExport";
             this.btnExport.Size = new System.Drawing.Size(131, 24);
@@ -402,17 +402,19 @@ namespace PLSQLExportFull.Forms
             // 
             this.txtWhereClause.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtWhereClause.Location = new System.Drawing.Point(15, 413);
+            this.txtWhereClause.Location = new System.Drawing.Point(15, 447);
             this.txtWhereClause.Margin = new System.Windows.Forms.Padding(2);
+            this.txtWhereClause.Multiline = true;
             this.txtWhereClause.Name = "txtWhereClause";
-            this.txtWhereClause.Size = new System.Drawing.Size(564, 20);
+            this.txtWhereClause.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.txtWhereClause.Size = new System.Drawing.Size(564, 58);
             this.txtWhereClause.TabIndex = 4;
             // 
             // lblWhereClause
             // 
             this.lblWhereClause.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.lblWhereClause.AutoSize = true;
-            this.lblWhereClause.Location = new System.Drawing.Point(18, 396);
+            this.lblWhereClause.Location = new System.Drawing.Point(15, 428);
             this.lblWhereClause.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.lblWhereClause.Name = "lblWhereClause";
             this.lblWhereClause.Size = new System.Drawing.Size(167, 13);
@@ -428,7 +430,7 @@ namespace PLSQLExportFull.Forms
             this.checkedListExportTables.Location = new System.Drawing.Point(15, 84);
             this.checkedListExportTables.Margin = new System.Windows.Forms.Padding(2);
             this.checkedListExportTables.Name = "checkedListExportTables";
-            this.checkedListExportTables.Size = new System.Drawing.Size(564, 274);
+            this.checkedListExportTables.Size = new System.Drawing.Size(564, 304);
             this.checkedListExportTables.TabIndex = 1;
             // 
             // lblExportTables
@@ -447,7 +449,7 @@ namespace PLSQLExportFull.Forms
             this.statusStrip.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.statusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.toolStripStatusLabel});
-            this.statusStrip.Location = new System.Drawing.Point(0, 469);
+            this.statusStrip.Location = new System.Drawing.Point(0, 541);
             this.statusStrip.Name = "statusStrip";
             this.statusStrip.Padding = new System.Windows.Forms.Padding(1, 0, 10, 0);
             this.statusStrip.Size = new System.Drawing.Size(600, 22);
@@ -464,7 +466,7 @@ namespace PLSQLExportFull.Forms
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(600, 491);
+            this.ClientSize = new System.Drawing.Size(600, 563);
             this.Controls.Add(this.tabControl);
             this.Controls.Add(this.statusStrip);
             this.Icon = global::PLSQLExportFull.Properties.Resources.Logo;
